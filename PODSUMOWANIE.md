@@ -219,4 +219,4 @@ Skrypt tworzy konfigurację, buduje obrazy i uruchamia cały stos. Pierwszy raz 
 | Podgląd topologii kontenerów | http://localhost:8088 |
 | Spark Master UI | http://localhost:8080 |
 
-Pozostałe komendy: `./demo.sh --nfs` (dodatkowo symulowany NFS), `./demo.sh status`, `./demo.sh down` (zatrzymanie), `./demo.sh clean` (zatrzymanie i usunięcie danych). Dostęp do działającej instancji na serwerze przekażę osobno.
+Pozostałe komendy: `./demo.sh --nfs` (dodatkowo symulowany NFS), `./demo.sh status`, `./demo.sh down` (zatrzymanie), `./demo.sh clean` (zatrzymanie i usunięcie danych).
