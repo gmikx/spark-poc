@@ -176,7 +176,7 @@ sequenceDiagram
 | Dynamic allocation do zera executorów | działa, pierwsze zadanie po przerwie trwa ok. 2,4 s dłużej |
 | Dołożenie zdalnego node'a (wss → ssh L3) | działa, executory po obu stronach |
 
-**Obliczenia grafowe w Neo4j.** Konnektor pozwala zlecić Neo4j wykonanie zapytania Cypher i zwrócić do Sparka tylko wynik, więc ciężkie operacje na grafie mogą być liczone po stronie bazy. Gotowych algorytmów grafowych (np. PageRank) dostarcza biblioteka Graph Data Science (GDS). Nie ma jej w obrazie Neo4j i nie sprawdzałem, jak działa z naszym konnektorem. Czy właśnie o takie użycie chodziło Panu, czy mam dodać GDS do obrazu Neo4j i to przetestować?
+**Obliczenia grafowe w Neo4j.** Konnektor pozwala zlecić Neo4j wykonanie zapytania Cypher i zwrócić do Sparka tylko wynik, więc ciężkie operacje na grafie mogą być liczone po stronie bazy. Gotowe algorytmy grafowych (np. PageRank) dostarcza biblioteka Graph Data Science (GDS). Nie ma jej w obrazie Neo4j i nie sprawdzałem, jak działa z naszym konnektorem. Czy właśnie o takim użyciu Pan mówił? Czy mam dodać GDS do obrazu Neo4j?
 
 ### Pułapki, które mogą dotyczyć prawdziwego środowiska
 

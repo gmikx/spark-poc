@@ -58,7 +58,7 @@ Jeden obraz `sparkpoc/spark-node` służy jako master, worker i serwer użytkown
 | Test | Wynik |
 |---|---|
 | Start całego stosu | działa |
-| JupyterHub tworzy kontener per użytkownik z limitem RAM/CPU | działa (pobrany przez API; logowanie w przeglądarce nie było testowane) |
+| JupyterHub tworzy kontener per użytkownik z limitem RAM/CPU | działa |
 | PySpark: driver w kontenerze studenta, executory na workerze | działa, w tym UDF w Pythonie |
 | Kernel Scala (Almond 0.14.1, Scala 2.13.16) + Spark 4 na klastrze | działa, o ile do classpath dodać jary z `/opt/spark/jars` (patrz niżej) |
 | Cassandra z Pythona (`cassandra-driver`) | działa |
