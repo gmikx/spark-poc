@@ -1,0 +1,55 @@
+# Dołączany node obliczeniowy (uruchamiany na innej maszynie, np. laptopie).
+# Wymaga .env.node (patrz .env.node.example) oraz wan/id_ed25519.
+# docker compose -p sparkpoc-node -f compose.node.yaml --env-file .env.node up -d --build
+services:
+  tunnel:
+    build: ./wan
+    image: sparkpoc/wan:latest
+    command: node.sh
+    cap_add: [NET_ADMIN]
+    devices: [/dev/net/tun]
+    sysctls:
+      net.ipv4.conf.all.rp_filter: "0"
+      net.ipv4.conf.default.rp_filter: "0"
+    environment:
+      NODE_IP: ${NODE_IP:?}
+      TUN_ID: ${TUN_ID:-0}
+      WAN_URL: ${WAN_URL:?}
+      WAN_PATH_SECRET: ${WAN_PATH_SECRET:?}
+    volumes:
+      - ./wan/id_ed25519:/run/wan/id_ed25519:ro
+    healthcheck:
+      test: ["CMD-SHELL", "ping -c1 -W2 10.77.0.2 >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+
+  spark-worker:
+    build: ./singleuser
+    image: sparkpoc/spark-node:latest
+    network_mode: "service:tunnel"
+    depends_on:
+      tunnel: {condition: service_healthy}
+    user: root
+    command:
+      - bash
+      - -c
+      - |
+        printf '10.77.0.10 spark-master\n10.77.0.11 cassandra\n10.77.0.12 neo4j\n' >> /etc/hosts
+        exec setpriv --reuid=1000 --regid=1000 --clear-groups /opt/spark/sbin/start-worker.sh spark://spark-master:7077
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+      SPARK_LOCAL_HOSTNAME: ${NODE_IP}
+      SPARK_PUBLIC_DNS: ${NODE_IP}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2g}
+      SPARK_LOCAL_DIRS: /tmp/spark
+      SPARK_WORKER_DIR: /tmp/spark/work
+    volumes:
+      - spark-local:/tmp/spark
+    restart: unless-stopped
+
+volumes:
+  spark-local:

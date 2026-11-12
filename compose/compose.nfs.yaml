@@ -1,0 +1,43 @@
+# Nakładka symulująca filer NFS jak na Taurusie: NFSv4.2, sec=sys, root_squash,
+# eksport po adresie IP klienta, katalogi domowe istnieją wcześniej i należą do UID z LDAP.
+# Uruchomienie (razem z LDAP):
+#   docker compose -f compose.yaml -f compose.ldap.yaml -f compose.nfs.yaml up -d --build
+# Podsieć sparkpoc_net (10.77.0.0/24) jest zdefiniowana w compose.yaml; serwer NFS ma w niej stały adres 10.77.0.13.
+
+services:
+  nfs:
+    build: ./nfs
+    image: sparkpoc/nfs-server:latest
+    privileged: true
+    hostname: nfs
+    environment:
+      NFS_CLIENTS: 10.77.0.0/24
+      SEED_HOMES: "stud2024/4alice:2024001:2024 stud2024/4bob:2024002:2024 stud2023/4carol:2023017:2023"
+    volumes:
+      - nfs-export:/data/home
+    networks:
+      default:
+        ipv4_address: 10.77.0.13
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep rpc.mountd >/dev/null && exportfs -v | grep -q /export/home"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  jupyterhub:
+    depends_on:
+      nfs:
+        condition: service_healthy
+    environment:
+      HOMES_VOLUME: sparkpoc_homes-nfs
+    volumes:
+      - homes-nfs:/home
+
+volumes:
+  nfs-export:
+  homes-nfs:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=10.77.0.13,nfsvers=4.2,rw,hard,timeo=600,retrans=2,sec=sys,rsize=32768,wsize=32768"
+      device: ":/home"

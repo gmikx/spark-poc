@@ -1,0 +1,5 @@
+.env
+wan/id_ed25519
+wan/id_ed25519.pub
+.env.node*
+!.env.node.example

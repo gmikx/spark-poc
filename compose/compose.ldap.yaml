@@ -1,0 +1,60 @@
+# Nakładka na compose.yaml: logowanie przez LDAP, UID/GID z LDAP, wspólny /home.
+# Uruchomienie: docker compose -f compose.yaml -f compose.ldap.yaml up -d
+# Używa tych samych obrazów i wolumenów co wersja podstawowa (poza obrazem openldap).
+
+services:
+  openldap:
+    image: osixia/openldap:1.5.0
+    command: --copy-service
+    environment:
+      LDAP_ORGANISATION: "PoC"
+      LDAP_DOMAIN: poc.local
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
+      LDAP_TLS: "false"
+    volumes:
+      - ./ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-bootstrap.ldif:ro
+      - ./ldap/02-security.ldif:/container/service/slapd/assets/config/bootstrap/ldif/02-security.ldif:ro
+      - ldap-data:/var/lib/ldap
+      - ldap-config:/etc/ldap/slapd.d
+
+  cassandra:
+    command:
+      - sh
+      - -c
+      - >-
+        sed -i 's/^authenticator:.*/authenticator: PasswordAuthenticator/;
+        s/^authorizer:.*/authorizer: CassandraAuthorizer/' /etc/cassandra/cassandra.yaml
+        && exec docker-entrypoint.sh cassandra -f
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -u cassandra -p ${CASSANDRA_ADMIN_PASSWORD:-cassandra} -e 'describe keyspaces' >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  jupyterhub:
+    depends_on:
+      openldap:
+        condition: service_started
+      cassandra:
+        condition: service_healthy
+    environment:
+      AUTH_MODE: ldap
+      LDAP_HOST: openldap
+      LDAP_BASE_DN: dc=poc,dc=local
+      LDAP_BIND_DN: cn=admin,dc=poc,dc=local
+      LDAP_BIND_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
+      LDAP_ALLOWED_GROUP: cn=sparkusers,ou=groups,dc=poc,dc=local
+      LDAP_ADMINS: ${LDAP_ADMINS:-4alice}
+      CASSANDRA_HOST: cassandra
+      CASSANDRA_ADMIN_USER: cassandra
+      CASSANDRA_ADMIN_PASSWORD: ${CASSANDRA_ADMIN_PASSWORD:-cassandra}
+      CASSANDRA_PASSWORD_SECRET: ${CASSANDRA_PASSWORD_SECRET:-poc-secret-change-me}
+    volumes:
+      - homes:/home
+      - nss:/nss
+
+volumes:
+  ldap-data:
+  ldap-config:
+  homes:
+  nss:

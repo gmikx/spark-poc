@@ -1,0 +1,49 @@
+dn: ou=people,dc=poc,dc=local
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=poc,dc=local
+objectClass: organizationalUnit
+ou: groups
+
+dn: uid=4alice,ou=people,dc=poc,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: 4alice
+cn: Alice Kowalska
+sn: Kowalska
+uidNumber: 2024001
+gidNumber: 2024
+homeDirectory: /home/stud2024/4alice
+loginShell: /bin/bash
+userPassword: alice123
+
+dn: uid=4bob,ou=people,dc=poc,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: 4bob
+cn: Bob Nowak
+sn: Nowak
+uidNumber: 2024002
+gidNumber: 2024
+homeDirectory: /home/stud2024/4bob
+loginShell: /bin/bash
+userPassword: bob123
+
+dn: uid=4carol,ou=people,dc=poc,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: 4carol
+cn: Carol Wisniewska
+sn: Wisniewska
+uidNumber: 2023017
+gidNumber: 2023
+homeDirectory: /home/stud2023/4carol
+loginShell: /bin/bash
+userPassword: carol123
+
+dn: cn=sparkusers,ou=groups,dc=poc,dc=local
+objectClass: groupOfNames
+cn: sparkusers
+member: uid=4alice,ou=people,dc=poc,dc=local
+member: uid=4bob,ou=people,dc=poc,dc=local

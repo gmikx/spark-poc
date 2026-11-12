@@ -1,0 +1,37 @@
+# Nakładka dla serwera głównego: wejście dla dołączanych node'ów (wss -> L3).
+# docker compose -f compose.yaml -f compose.cluster.yaml up -d --build
+services:
+  wan-gw:
+    build: ./wan
+    image: sparkpoc/wan:latest
+    command: gw.sh
+    networks:
+      default:
+        ipv4_address: 10.77.0.2
+    cap_add: [NET_ADMIN]
+    devices: [/dev/net/tun]
+    sysctls:
+      net.ipv4.ip_forward: "1"
+      net.ipv4.conf.all.proxy_arp: "1"
+      net.ipv4.conf.all.rp_filter: "0"
+      net.ipv4.conf.default.rp_filter: "0"
+    volumes:
+      - ./wan/authorized_keys:/etc/ssh/authorized_keys:ro
+      - wan-hostkeys:/etc/ssh/hostkeys
+    restart: unless-stopped
+
+  wan-ws:
+    image: ghcr.io/erebe/wstunnel:latest
+    depends_on: [wan-gw]
+    entrypoint: ["/home/app/wstunnel"]
+    command:
+      - server
+      - ws://0.0.0.0:8443
+      - --restrict-to=wan-gw:22
+      - --restrict-http-upgrade-path-prefix=${WAN_PATH_SECRET:?ustaw WAN_PATH_SECRET w .env}
+    ports:
+      - "8443:8443"
+    restart: unless-stopped
+
+volumes:
+  wan-hostkeys:

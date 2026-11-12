@@ -1,0 +1,23 @@
+# Vhost na nas: wejście dla dołączanych node'ów Spark (wstunnel po wss).
+# Bez authentika (to nie przeglądarka); chroni ukryta ścieżka __WAN_PATH_SECRET__
+# po stronie wstunnela oraz klucz SSH do tunelu L3. Cokolwiek innego: 404.
+server {
+    listen 443 ssl http2;
+    server_name node.sandbox.example.org;
+
+    include /etc/nginx/snippets/ssl-gizanet.conf;
+    include snippets/custom-ssl.conf;
+
+    location /__WAN_PATH_SECRET__/ {
+        proxy_pass http://192.0.2.10:8443;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_buffering off;
+    }
+
+    location / { return 404; }
+}

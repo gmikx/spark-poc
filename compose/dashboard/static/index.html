@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>sparkpoc: topologia</title>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; background: #12161c; color: #dde; }
+  #bar { position: absolute; top: 0; left: 0; right: 0; z-index: 2; padding: 8px 14px; background: #0008; display: flex; gap: 18px; font-size: 13px; align-items: center; }
+  #cy { position: absolute; inset: 0; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+  #legend { position: absolute; bottom: 10px; right: 10px; z-index: 2; background: #000a; padding: 8px 12px; border-radius: 6px; font-size: 12px; }
+  #legend div { margin: 3px 0; }
+  #legend i { display: inline-block; width: 28px; border-top: 3px solid; vertical-align: middle; margin-right: 6px; }
+  #info { position: absolute; bottom: 10px; left: 10px; z-index: 2; background: #000a; padding: 8px 12px; border-radius: 6px; font-size: 12px; white-space: pre; max-width: 420px; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <b>sparkpoc</b><span id="summary">ładowanie…</span>
+  <span><i class="dot" style="background:#3fb950"></i>działa</span>
+  <span><i class="dot" style="background:#d29922"></i>start/problem</span>
+  <span><i class="dot" style="background:#f85149"></i>zatrzymany</span>
+  <span id="stamp" style="margin-left:auto;opacity:.6"></span>
+</div>
+<div id="cy"></div>
+<div id="legend"></div>
+<div id="info">kliknij węzeł lub strzałkę</div>
+<script>
+const COLORS = { "spark-master": "#e25a1c", "spark-worker": "#f0a04b", cassandra: "#1287b1", neo4j: "#4c8eda",
+  hub: "#f37726", notebook: "#9b6dd6", ldap: "#888", nfs: "#b0a060", tunnel: "#2ea6a6", dashboard: "#666", other: "#666" };
+const EDGE = { depends_on: ["#667", "dashed"], spawns: ["#9b6dd6", "dotted"], spark: ["#e25a1c", "solid"],
+  data: ["#4c8eda", "solid"], registered: ["#f0a04b", "solid"], tunnel: ["#2ea6a6", "dashed"] };
+const EDGE_INFO = {
+  depends_on: ["zależność startowa", "usługa wymaga drugiej do startu (depends_on w compose)"],
+  spawns: ["utworzył kontener", "JupyterHub uruchomił ten notebook (DockerSpawner)"],
+  spark: ["zadania Spark", "notebook jest driverem Sparka i zleca zadania masterowi (executory na workerach)"],
+  data: ["dostęp do danych", "notebook łączy się z bazą (Cassandra / Neo4j)"],
+  registered: ["worker zarejestrowany", "worker jest podpięty do mastera Sparka i przyjmuje od niego zadania"],
+  tunnel: ["tunel do klastra", "zdalny node łączy się z klastrem przez tunel wss + ssh (wan-gw)"],
+};
+const statusColor = s => s === "running" ? "#3fb950" : (s === "exited" || s === "dead" || s === "down") ? "#f85149" : "#d29922";
+
+const cy = cytoscape({
+  container: document.getElementById("cy"),
+  wheelSensitivity: 0.3,
+  style: [
+    { selector: "node[kind]", style: { label: "data(label)", color: "#fff", "font-size": 11, "text-valign": "bottom", "text-margin-y": 4,
+        "background-color": "data(color)", "border-width": 4, "border-color": "data(border)", width: 46, height: 46 } },
+    { selector: ":parent", style: { label: "data(label)", "text-valign": "top", "background-opacity": 0.08, "background-color": "#8af",
+        "border-width": 1, "border-color": "#8af", "border-style": "dashed", shape: "round-rectangle", "font-size": 14, padding: 24, color: "#9bd" } },
+    { selector: "edge", style: { width: 2, "curve-style": "bezier", "target-arrow-shape": "triangle", "line-color": "data(color)",
+        "target-arrow-color": "data(color)", "line-style": "data(style)", opacity: 0.85 } },
+    { selector: "edge:selected", style: { width: 4, opacity: 1 } },
+  ],
+});
+
+const COL = { hub: 0, ldap: 0, nfs: 0, notebook: 1, "spark-master": 2, cassandra: 2, neo4j: 2, "spark-worker": 3, tunnel: 4, dashboard: 4, other: 4 };
+const ORDER = ["hub", "ldap", "nfs", "notebook", "spark-master", "cassandra", "neo4j", "spark-worker", "tunnel", "dashboard", "other"];
+const DX = 190, DY = 120;
+
+function layout(nodes) {
+  const main = (nodes.find(n => n.kind === "spark-master") || nodes[0]).host;
+  const others = [...new Set(nodes.map(n => n.host))].filter(h => h !== main).sort();
+  const pos = {}, cells = {};
+  nodes.forEach(n => {
+    const hostIdx = n.host === main ? -1 : others.indexOf(n.host);
+    const col = n.host === main ? (COL[n.kind] ?? 4) : 5 + hostIdx;
+    (cells[`${n.host}|${col}`] ||= { col, items: [] }).items.push(n);
+  });
+  Object.values(cells).forEach(({ col, items }) => {
+    items.sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || a.id.localeCompare(b.id));
+    items.forEach((n, i) => { pos[n.id] = { x: col * DX + (col >= 5 ? 90 : 0), y: (i - (items.length - 1) / 2) * DY }; });
+  });
+  return pos;
+}
+
+let signature = "";
+async function refresh() {
+  let g;
+  try { g = await (await fetch("api/graph")).json(); } catch (e) { document.getElementById("summary").textContent = "brak połączenia z API"; return; }
+  if (g.error) { document.getElementById("summary").textContent = g.error; return; }
+
+  const hosts = [...new Set(g.nodes.map(n => n.host))];
+  const pos = layout(g.nodes);
+  const elements = [
+    ...hosts.map(h => ({ data: { id: "host:" + h, label: "node: " + h } })),
+    ...g.nodes.map(n => ({ position: pos[n.id], data: { ...n, parent: "host:" + n.host, color: COLORS[n.kind] || "#666", border: statusColor(n.status) } })),
+    ...g.edges.map(e => ({ data: { id: `${e.source}>${e.target}:${e.kind}`, ...e, color: EDGE[e.kind][0], style: EDGE[e.kind][1] } })),
+  ];
+  const sig = elements.map(e => e.data.id).sort().join("|");
+  if (sig !== signature) {
+    signature = sig;
+    cy.elements().remove();
+    cy.add(elements);
+    cy.layout({ name: "preset", fit: true, padding: 50 }).run();
+  } else {
+    elements.forEach(e => cy.getElementById(e.data.id).data(e.data));
+  }
+  const w = g.nodes.filter(n => n.kind === "spark-worker").length;
+  const nb = g.nodes.filter(n => n.kind === "notebook").length;
+  const m = (g.nodes.find(n => n.id === "spark-master") || {}).spark;
+  document.getElementById("summary").textContent =
+    `${hosts.length} node(ów) · ${w} worker(ów) · ${nb} notebook(ów)` + (m ? ` · rdzenie ${m.coresused}/${m.cores} · aplikacje ${m.apps}` : "");
+  document.getElementById("stamp").textContent = new Date(g.time * 1000).toLocaleTimeString();
+}
+cy.on("tap", "node[kind]", ev => {
+  const d = ev.target.data();
+  document.getElementById("info").textContent =
+    [`${d.label} (${d.kind})`, `status: ${d.status}`, `node: ${d.host}`, `ip: ${d.ip || "-"}`, d.image && `obraz: ${d.image}`,
+     d.spark && JSON.stringify(d.spark)].filter(Boolean).join("\n");
+});
+document.getElementById("legend").innerHTML = Object.entries(EDGE_INFO).map(([k, [name]]) =>
+  `<div><i style="border-color:${EDGE[k][0]};border-top-style:${EDGE[k][1]}"></i>${name}</div>`).join("");
+cy.on("tap", "edge", ev => {
+  const d = ev.target.data(), [name, desc] = EDGE_INFO[d.kind];
+  document.getElementById("info").textContent = `${d.source} → ${d.target}\n${name}\n${desc}`;
+});
+cy.on("mouseover", "edge", ev => ev.target.style({ width: 4 }));
+cy.on("mouseout", "edge", ev => ev.target.removeStyle("width"));
+refresh(); setInterval(refresh, 3000);
+</script>
+</body>
+</html>

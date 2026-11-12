@@ -1,0 +1,116 @@
+name: sparkpoc
+
+x-spark-env: &spark-env
+  SPARK_NO_DAEMONIZE: "true"
+
+services:
+  spark-master:
+    build: ./singleuser
+    image: sparkpoc/spark-node:latest
+    hostname: spark-master
+    networks:
+      default:
+        ipv4_address: 10.77.0.10
+    command: /opt/spark/sbin/start-master.sh
+    environment:
+      <<: *spark-env
+      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_OPTS: "-Dspark.deploy.defaultCores=${SPARK_DEFAULT_CORES:-1}"
+    ports:
+      - "8080:8080"
+    volumes:
+      - spark-local-master:/tmp/spark
+
+  spark-worker:
+    image: sparkpoc/spark-node:latest
+    depends_on: [spark-master]
+    command: /opt/spark/sbin/start-worker.sh spark://spark-master:7077
+    environment:
+      <<: *spark-env
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2g}
+      SPARK_LOCAL_DIRS: /tmp/spark
+      SPARK_WORKER_DIR: /tmp/spark/work
+    volumes:
+      - spark-local-worker:/tmp/spark
+
+  cassandra:
+    image: cassandra:5.0
+    networks:
+      default:
+        ipv4_address: 10.77.0.11
+    environment:
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 128M
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces' >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  neo4j:
+    image: neo4j:5-community
+    networks:
+      default:
+        ipv4_address: 10.77.0.12
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-pocpassword}
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    ports:
+      - "7474:7474"
+    volumes:
+      - neo4j-data:/data
+
+  jupyterhub:
+    build: ./hub
+    depends_on: [spark-master]
+    ports:
+      - "8000:8000"
+    environment:
+      SINGLEUSER_IMAGE: sparkpoc/spark-node:latest
+      DOCKER_NETWORK: sparkpoc_net
+      POC_PASSWORD: ${POC_PASSWORD:-poc}
+      POC_USERS: ${POC_USERS:-alice,bob,admin}
+      POC_ADMINS: ${POC_ADMINS:-admin}
+      USER_MEM_LIMIT: ${USER_MEM_LIMIT:-2G}
+      USER_CPU_LIMIT: ${USER_CPU_LIMIT:-1}
+      USER_IDLE_TIMEOUT: ${USER_IDLE_TIMEOUT:-900}
+      KERNEL_IDLE_TIMEOUT: ${KERNEL_IDLE_TIMEOUT:-600}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - hub-data:/srv/jupyterhub
+      - shared-data:/shared-data:ro
+
+  dashboard:
+    build: ./dashboard
+    image: sparkpoc/dashboard:latest
+    environment:
+      DOCKER_NETWORK: sparkpoc_net
+      LOCAL_NODE_NAME: ${LOCAL_NODE_NAME:-sandbox}
+      NODE_NAMES: ${NODE_NAMES:-10.77.0.200=laptop,10.77.0.201=laptop2}
+    ports:
+      - "${DASHBOARD_BIND:-0.0.0.0}:8088:8088"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+volumes:
+  spark-local-master:
+  spark-local-worker:
+  cassandra-data:
+  neo4j-data:
+  hub-data:
+  shared-data:
+
+networks:
+  default:
+    name: sparkpoc_net
+    ipam:
+      config:
+        - subnet: 10.77.0.0/24
+          ip_range: 10.77.0.64/26
+          gateway: 10.77.0.1
