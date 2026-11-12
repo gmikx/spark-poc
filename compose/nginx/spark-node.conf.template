@@ -5,7 +5,7 @@ server {
     listen 443 ssl http2;
     server_name node.sandbox.example.org;
 
-    include /etc/nginx/snippets/ssl-gizanet.conf;
+    include /etc/nginx/snippets/ssl-example.conf;
     include snippets/custom-ssl.conf;
 
     location /__WAN_PATH_SECRET__/ {
