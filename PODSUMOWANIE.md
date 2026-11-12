@@ -1,6 +1,6 @@
 # PoC platformy Spark dla studentów: podsumowanie
 
-Stan na 12.11.2026. Kod i instrukcja uruchomienia: to repozytorium (jedna komenda: `compose/demo.sh`, patrz rozdział 7). Poniżej opisuję, co zbudowałem, jak to działa, co sprawdziłem i o co chciałbym Pana zapytać.
+Stan na 12.11.2026. Kod i instrukcja uruchomienia: to repozytorium (jedna komenda: `compose/demo.sh`, patrz rozdział 6). Poniżej opisuję, co zbudowałem, jak to działa, i co sprawdziłem.
 
 ## 1. Kontekst i cel
 
@@ -138,7 +138,7 @@ Na jednym node'ie nie stoi więc kilka niezależnych sparków, tylko jeden worke
 | Złożoność | mała | większa: konfiguracja Hadoopa, spójność wersji Pythona i Javy, dostępność drivera z notebooka |
 | Gdzie pracują executory | procesy workera | kontenery YARN |
 
-**Moja ocena.** Standalone rozwiązuje to, czego to środowisko potrzebuje dziś: kilka workerów i prosty podział na studentów. YARN stałby się potrzebny, gdyby wymaganiem były sprawiedliwe kolejki dla wielu użytkowników, rezerwacje zasobów dla grup albo kilka niezależnych klastrów na tych samych maszynach. Alternatywą o podobnych możliwościach jest Kubernetes, ale to pełna zmiana platformy. Chciałbym zapytać, jaki konkretnie problem ma Pana zdaniem rozwiązać YARN (pytanie 9). Jeśli problem jest czysto zasobowy (np. 16 studentów na wspólnej puli), da się go w pierwszym kroku ograniczyć limitami na aplikację i krótszym czasem bezczynności, bez dokładania Hadoopa.
+**Moja ocena.** Standalone rozwiązuje to, czego to środowisko potrzebuje dziś: kilka workerów i prosty podział na studentów. YARN stałby się potrzebny, gdyby wymaganiem były sprawiedliwe kolejki dla wielu użytkowników, rezerwacje zasobów dla grup albo kilka niezależnych klastrów na tych samych maszynach. Alternatywą o podobnych możliwościach jest Kubernetes, ale to pełna zmiana platformy. Jeśli problem jest czysto zasobowy (np. 16 studentów na wspólnej puli), da się go w pierwszym kroku ograniczyć limitami na aplikację i krótszym czasem bezczynności, bez dokładania Hadoopa. YARN (albo Kubernetes) ma sens dopiero wtedy, gdy pojawi się potrzeba kolejek lub kilku klastrów.
 
 ### Dokładanie node'a obliczeniowego
 
@@ -179,12 +179,12 @@ sequenceDiagram
 ### Pułapki, które mogą dotyczyć prawdziwego środowiska
 
 1. **Login zaczynający się od cyfry** (np. `4alice`) jest domyślnie odrzucany przez `ldapauthenticator` (`valid_username_regex`). Wystarczy rozluźnić wyrażenie regularne.
-2. **Sprawdzanie grupy odbywa się z uprawnieniami samego użytkownika.** Jeśli zwykły użytkownik nie czyta grup w LDAP, logowanie jest odrzucane bez czytelnego komunikatu. To pytanie do administratora LDAP.
+2. **Sprawdzanie grupy odbywa się z uprawnieniami samego użytkownika.** Jeśli zwykły użytkownik nie czyta grup w LDAP, logowanie jest odrzucane bez czytelnego komunikatu. Trzeba to sprawdzić na prawdziwym LDAP-ie.
 3. **Dowolny UID bez wpisu w `/etc/passwd`** psuje Sparka (Java nie zna katalogu domowego). Rozwiązanie w PoC: `libnss-wrapper` i pliki passwd/group generowane przez hub, trzymane poza home.
 4. **Scala (Almond) ignoruje `spark-defaults.conf`**, bo uruchamia Sparka we własnej JVM. Ustawienia trzeba przepisać na `-Dspark.*` w `kernel.json` (wyjątek: `spark.driver.memory`), a do classpath dołożyć jary z `/opt/spark/jars`.
 5. **Dynamic allocation do zera** wymaga `shuffleTracking.timeout`. Bez niego executor po agregacji nie jest zwalniany.
 6. **Nazwa roli w Cassandrze zaczynająca się od cyfry** działa, ale w CQL wymaga cudzysłowu. Dlatego rola ma prefiks `u` (`u4alice`).
-7. **Neo4j Community** ma jedną bazę i brak ról, więc nie ma izolacji między studentami. Z korespondencji rozumiem, że uznał Pan to za wystarczające, proszę o potwierdzenie.
+7. **Neo4j Community** ma jedną bazę i brak ról, więc nie ma izolacji między studentami.
 8. **NFS i `root_squash`:** hub nie może tworzyć katalogów domowych ani zmieniać ich właściciela, więc muszą istnieć wcześniej. Przy awarii filera (`hard`) operacje wiszą do powrotu serwera.
 9. **Admin Huba może otworzyć cudzy serwer** i wykonywać kod jako ten użytkownik.
 10. **Wylogowanie:** domyślne zachowanie huba (`shutdown_on_logout`) zatrzymywało serwer przy wylogowaniu z jednej z wielu przeglądarek. W PoC jest własna obsługa, która zatrzymuje kontener dopiero przy ostatniej sesji. Za „aktywną sesję" uznaje tę, która otworzyła notebook.
@@ -197,25 +197,10 @@ sequenceDiagram
 - **Nie testowałem:** 16 równoległych sesji, prawdziwego LDAP-a i filera, WebSocketów kernela przez nginx z zewnątrz, zachowania NFS pod obciążeniem.
 - Testy robiłem na laptopie i małym serwerze domowym, a nie na docelowej VM (inna architektura i skala).
 - Tunel idzie przez TCP-over-TCP, więc przy słabym łączu może być wolniejszy. W docelowej sieci problem w ogóle może nie istnieć, jeśli node'y są w tej samej podsieci co hub.
-- Konnektory Cassandry i Neo4j są pobierane z Mavena w czasie działania. Docelowo lepiej wbudować jary w obraz (zależy od odpowiedzi na pytanie 28 o proxy i mirror).
+- Konnektory Cassandry i Neo4j są pobierane z Mavena w czasie działania. Docelowo lepiej wbudować jary w obraz (zależy od tego, czy VM będzie miała dostęp do Mavena albo lokalnego mirrora).
 - k3s nie był testowany w PoC, jego ocena opiera się na wiedzy ogólnej.
 
-## 6. Pytania do Pana
-
-Najważniejsze na rozmowę (pełna lista pytań jest w osobnym dokumencie):
-
-1. **Zasoby VM** (rdzenie, RAM) i możliwość ich dołożenia.
-2. **Drugi node:** czy jest realnie planowany i czy będzie w tej samej sieci co hub? W PoC wystarcza zwykłe HTTPS, w docelowej sieci może wchodzić w grę VLAN i firewall.
-3. **LDAP:** czy dostaniemy konto serwisowe tylko do odczytu, czy zalogowany użytkownik widzi członków grup, czy VM ma dostęp do LDAP-a?
-4. **NFS:** czy nowa VM może montować filer i kto tworzy katalogi domowe nowych roczników?
-5. **Polityki bezpieczeństwa wobec Dockera** (gniazdo, kontenery z innym UID, root).
-6. **Konnektor Cassandry** bez oficjalnego wsparcia dla Sparka 4: czy akceptujemy to ryzyko?
-7. **Nazwy kont w bazach** (`u<login>` czy `<login>`) i polityka uprawnień admina Huba.
-8. **Dostęp do API Proxmoksa i GitLaba** (runner) dla wdrażania z pipeline'ów.
-9. **YARN:** jaki problem ma rozwiązać (kolejki, limity na użytkownika, kilka klastrów na tych samych maszynach)? Czy wystarczy Spark standalone z limitami na aplikację i dynamic allocation, a YARN (albo Kubernetes) wejdzie dopiero, gdy pojawi się taka potrzeba?
-10. **Obliczenia grafowe w Neo4j:** czy ma Pan na myśli algorytmy z biblioteki GDS? Jeśli tak, dodam ją do obrazu Neo4j i sprawdzę to z konnektorem.
-
-## 7. Jak samemu uruchomić PoC
+## 6. Jak samemu uruchomić PoC
 
 Wymagania: Docker (Desktop lub Engine z `docker compose` v2), ok. 6 GB RAM dla Dockera, ok. 10 GB miejsca na dysku.
 
