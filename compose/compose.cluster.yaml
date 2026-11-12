@@ -16,7 +16,7 @@ services:
       net.ipv4.conf.all.rp_filter: "0"
       net.ipv4.conf.default.rp_filter: "0"
     volumes:
-      - ./wan/authorized_keys:/etc/ssh/authorized_keys:ro
+      - ${WAN_AUTHORIZED_KEYS:-./wan/authorized_keys}:/etc/ssh/authorized_keys:ro
       - wan-hostkeys:/etc/ssh/hostkeys
     restart: unless-stopped
 

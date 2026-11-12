@@ -22,6 +22,8 @@ Skrypt tworzy `.env`, buduje obrazy i uruchamia cały stos (JupyterHub z LDAP, S
 | Dashboard topologii | http://localhost:8088 |
 | Spark Master UI | http://localhost:8080 |
 
+Domyślnie `demo.sh` startuje też **dodatkowy node obliczeniowy**: osobny kontener w osobnej sieci Dockera, który łączy się z klastrem tak jak zdalna maszyna, przez tunel L3 (wss → ssh), i dopiero tam dostaje adres `10.77.0.200`. W Spark Master UI i w dashboardzie widać wtedy dwóch workerów, a executory zadań trafiają na oba. Można to wyłączyć opcją `--no-node` (mniej RAM-u).
+
 Pozostałe komendy: `./demo.sh --nfs` (dodatkowo symulowany NFS), `./demo.sh status`, `./demo.sh down` (zatrzymanie), `./demo.sh clean` (zatrzymanie i usunięcie danych). Dokładanie zdalnych node'ów wymaga serwera z `compose.cluster.yaml` (patrz niżej).
 
 ## Uruchomienie (ręcznie, wersja bez LDAP)

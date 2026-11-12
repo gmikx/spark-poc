@@ -219,4 +219,6 @@ Skrypt tworzy konfigurację, buduje obrazy i uruchamia cały stos. Pierwszy raz 
 | Podgląd topologii kontenerów | http://localhost:8088 |
 | Spark Master UI | http://localhost:8080 |
 
+Domyślnie skrypt startuje też **dodatkowy node**: osobny kontener w osobnej sieci Dockera, połączony z klastrem tym samym tunelem L3 co zdalna maszyna (rozdział 3). Z perspektywy mastera, driverów i dashboardu to zwykły zdalny worker z adresem `10.77.0.200`. Opcja `--no-node` go pomija.
+
 Pozostałe komendy: `./demo.sh --nfs` (dodatkowo symulowany NFS), `./demo.sh status`, `./demo.sh down` (zatrzymanie), `./demo.sh clean` (zatrzymanie i usunięcie danych).

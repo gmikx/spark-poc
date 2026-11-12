@@ -8,6 +8,7 @@ services:
     command: node.sh
     cap_add: [NET_ADMIN]
     devices: [/dev/net/tun]
+    extra_hosts: ["host.docker.internal:host-gateway"]
     sysctls:
       net.ipv4.conf.all.rp_filter: "0"
       net.ipv4.conf.default.rp_filter: "0"
@@ -17,7 +18,7 @@ services:
       WAN_URL: ${WAN_URL:?}
       WAN_PATH_SECRET: ${WAN_PATH_SECRET:?}
     volumes:
-      - ./wan/id_ed25519:/run/wan/id_ed25519:ro
+      - ${WAN_KEY_FILE:-./wan/id_ed25519}:/run/wan/id_ed25519:ro
     healthcheck:
       test: ["CMD-SHELL", "ping -c1 -W2 10.77.0.2 >/dev/null"]
       interval: 10s
