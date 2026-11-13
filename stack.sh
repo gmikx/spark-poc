@@ -13,7 +13,7 @@
 # Zestaw plików compose można zmienić w .env: STACK_FILES="compose.yaml compose.ldap.yaml compose.nfs.yaml"
 # (dodaj compose.cluster.yaml, żeby przyjmować dodatkowe node'y; usuń compose.nfs.yaml, żeby pominąć NFS).
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/compose"
 umask 002
 
 [ -f .env ] || { echo "Brak pliku .env (skopiuj .env.example i ustaw własne hasła)."; exit 1; }

@@ -31,14 +31,13 @@ Pozostałe komendy: `./demo.sh --nfs` (dodatkowo symulowany NFS), `./demo.sh sta
 Odpowiednik `demo.sh` dla instalacji na stałe (LDAP + NFS, porty domyślnie z `BIND_ADDR`, patrz `.env.example`):
 
 ```bash
-cd compose
-cp .env.example .env     # ustaw własne hasła i BIND_ADDR=127.0.0.1
+cp compose/.env.example compose/.env     # ustaw własne hasła i BIND_ADDR=127.0.0.1
 ./stack.sh up            # pierwsze uruchomienie (buduje obrazy)
 ./stack.sh status        # kontenery, workery Spark, sesje studentów
 ./stack.sh stop          # zatrzymanie (dane zostają); ./stack.sh start wznawia
 ```
 
-`stack.sh` dba o kolejność (serwer NFS musi działać przed hubem) i usuwa kontenery sesji studentów przy zatrzymaniu. Zestaw plików compose można zmienić w `.env` (`STACK_FILES`).
+`stack.sh` dba o kolejność (serwer NFS musi działać przed hubem) i usuwa kontenery sesji studentów przy zatrzymaniu. Zestaw plików compose można zmienić w `.env` (`STACK_FILES`). Skrypt leży w korzeniu repo, a `.env` w `compose/`.
 
 ## Uruchomienie (ręcznie, wersja bez LDAP)
 
