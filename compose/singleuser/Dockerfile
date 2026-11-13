@@ -25,7 +25,9 @@ RUN useradd -m -u 1000 -s /bin/bash jovyan \
  && mkdir -p /home/jovyan/work /tmp/spark \
  && chown -R jovyan:jovyan /home/jovyan /tmp/spark
 
-COPY --chmod=0644 spark-defaults.conf /opt/spark/conf/spark-defaults.conf
+# install tworzy nowy plik z prawami 0644 (COPY przenosi też ACL z katalogu budowania, co blokuje odczyt przez użytkownika kontenera)
+COPY spark-defaults.conf /tmp/spark-defaults.conf
+RUN install -m 0644 /tmp/spark-defaults.conf /opt/spark/conf/spark-defaults.conf && rm /tmp/spark-defaults.conf
 
 # Almond uruchamia Sparka w swojej JVM bez spark-submit, więc nie czyta spark-defaults.conf.
 # Spark czyta jednak właściwości systemowe "spark.*", więc przepisujemy plik na argumenty -D kernela.
