@@ -17,7 +17,7 @@ services:
       SPARK_MASTER_HOST: spark-master
       SPARK_MASTER_OPTS: "-Dspark.deploy.defaultCores=${SPARK_DEFAULT_CORES:-1}"
     ports:
-      - "8080:8080"
+      - "${BIND_ADDR:-0.0.0.0}:8080:8080"
     volumes:
       - spark-local-master:/tmp/spark
 
@@ -61,7 +61,7 @@ services:
       NEO4J_server_memory_heap_max__size: 512m
       NEO4J_server_memory_pagecache_size: 256m
     ports:
-      - "7474:7474"
+      - "${BIND_ADDR:-0.0.0.0}:7474:7474"
     volumes:
       - neo4j-data:/data
 
@@ -69,7 +69,7 @@ services:
     build: ./hub
     depends_on: [spark-master]
     ports:
-      - "8000:8000"
+      - "${BIND_ADDR:-0.0.0.0}:8000:8000"
     environment:
       SINGLEUSER_IMAGE: sparkpoc/spark-node:latest
       DOCKER_NETWORK: sparkpoc_net
@@ -93,7 +93,7 @@ services:
       LOCAL_NODE_NAME: ${LOCAL_NODE_NAME:-sandbox}
       NODE_NAMES: ${NODE_NAMES:-10.77.0.200=laptop,10.77.0.201=laptop2}
     ports:
-      - "${DASHBOARD_BIND:-0.0.0.0}:8088:8088"
+      - "${DASHBOARD_BIND:-${BIND_ADDR:-0.0.0.0}}:8088:8088"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped

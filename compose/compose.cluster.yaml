@@ -30,7 +30,7 @@ services:
       - --restrict-to=wan-gw:22
       - --restrict-http-upgrade-path-prefix=${WAN_PATH_SECRET:?ustaw WAN_PATH_SECRET w .env}
     ports:
-      - "8443:8443"
+      - "${BIND_ADDR:-0.0.0.0}:8443:8443"
     restart: unless-stopped
 
 volumes:
