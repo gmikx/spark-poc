@@ -26,6 +26,20 @@ Domyślnie `demo.sh` startuje też **dodatkowy node obliczeniowy**: osobny konte
 
 Pozostałe komendy: `./demo.sh --nfs` (dodatkowo symulowany NFS), `./demo.sh status`, `./demo.sh down` (zatrzymanie), `./demo.sh clean` (zatrzymanie i usunięcie danych). Dokładanie zdalnych node'ów wymaga serwera z `compose.cluster.yaml` (patrz niżej).
 
+## Instalacja na serwerze (`stack.sh`)
+
+Odpowiednik `demo.sh` dla instalacji na stałe (LDAP + NFS, porty domyślnie z `BIND_ADDR`, patrz `.env.example`):
+
+```bash
+cd compose
+cp .env.example .env     # ustaw własne hasła i BIND_ADDR=127.0.0.1
+./stack.sh up            # pierwsze uruchomienie (buduje obrazy)
+./stack.sh status        # kontenery, workery Spark, sesje studentów
+./stack.sh stop          # zatrzymanie (dane zostają); ./stack.sh start wznawia
+```
+
+`stack.sh` dba o kolejność (serwer NFS musi działać przed hubem) i usuwa kontenery sesji studentów przy zatrzymaniu. Zestaw plików compose można zmienić w `.env` (`STACK_FILES`).
+
 ## Uruchomienie (ręcznie, wersja bez LDAP)
 
 ```bash
