@@ -26,8 +26,10 @@ RUN useradd -m -u 1000 -s /bin/bash jovyan \
  && chown -R jovyan:jovyan /home/jovyan /tmp/spark
 
 # install tworzy nowy plik z prawami 0644 (COPY przenosi też ACL z katalogu budowania, co blokuje odczyt przez użytkownika kontenera)
-COPY spark-defaults.conf /tmp/spark-defaults.conf
-RUN install -D -m 0644 /tmp/spark-defaults.conf /opt/spark/conf/spark-defaults.conf && rm /tmp/spark-defaults.conf
+COPY spark-defaults.conf predef.sc /tmp/
+RUN install -D -m 0644 /tmp/spark-defaults.conf /opt/spark/conf/spark-defaults.conf \
+ && install -D -m 0644 /tmp/predef.sc /opt/almond/predef.sc \
+ && rm /tmp/spark-defaults.conf /tmp/predef.sc
 
 # Almond uruchamia Sparka w swojej JVM bez spark-submit, więc nie czyta spark-defaults.conf.
 # Spark czyta jednak właściwości systemowe "spark.*", więc przepisujemy plik na argumenty -D kernela.
@@ -42,7 +44,8 @@ for line in open("/opt/spark/conf/spark-defaults.conf"):
         if key != "spark.driver.memory":
             props.append(f"-D{key}={value.strip()}")
 data = json.load(open(kernel))
-data["argv"] = data["argv"][:1] + props + data["argv"][1:]
+# predef.sc ładuje jary Sparka i definiuje spark oraz sc (tworzone dopiero przy pierwszym użyciu)
+data["argv"] = data["argv"][:1] + props + data["argv"][1:] + ["--predef", "/opt/almond/predef.sc"]
 json.dump(data, open(kernel, "w"), indent=2)
 PY
 
