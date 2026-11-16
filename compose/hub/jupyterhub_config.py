@@ -66,7 +66,7 @@ if AUTH_MODE == "ldap":
         c.LDAPAuthenticator.lookup_dn_search_password = os.environ.get("LDAP_BIND_PASSWORD", "")
     else:
         c.LDAPAuthenticator.bind_dn_template = [f"uid={{username}},ou=people,{base_dn}"]
-    c.Authenticator.admin_users = set(os.environ["LDAP_ADMINS"].split(","))
+    c.Authenticator.admin_users = set(os.environ["HUB_ADMINS"].split(","))
 else:
     c.JupyterHub.authenticator_class = "dummy"
     c.DummyAuthenticator.password = os.environ["POC_PASSWORD"]

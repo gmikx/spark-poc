@@ -135,7 +135,7 @@ Konta testowe (naśladują układ z Taurusa: login `4nazwisko`, UID `<rok><numer
 
 ### Kto może się zalogować (autoryzacja po stronie serwera)
 
-LDAP służy tylko do **uwierzytelnienia** (login i hasło). O dostępie do JupyterHuba i bramki SSH decyduje **grupa systemowa na serwerze** (domyślnie `sparkusers`, zmienna `ACCESS_GROUP`). Hub i bramka czytają plik `group` hosta przy każdym logowaniu, więc zmiana członkostwa działa od razu, bez restartu. Administratorzy z `LDAP_ADMINS` mają dostęp zawsze. Przynależność do grup LDAP nie jest używana.
+LDAP służy tylko do **uwierzytelnienia** (login i hasło). O dostępie do JupyterHuba i bramki SSH decyduje **grupa systemowa na serwerze** (domyślnie `sparkusers`, zmienna `ACCESS_GROUP`). Hub i bramka czytają plik `group` hosta przy każdym logowaniu, więc zmiana członkostwa działa od razu, bez restartu. Administratorzy z `HUB_ADMINS` mają dostęp zawsze. Przynależność do grup LDAP nie jest używana.
 
 Na serwerze (jednorazowo `sudo ~/scripts/04-host-nss-ldap.sh`, który instaluje `nslcd` i dodaje `ldap` do NSS na hoście, żeby system znał użytkowników z LDAP) i w `compose/.env` ustawiamy `HOST_ETC_DIR=/etc`. Potem zarządzanie to zwykłe komendy:
 

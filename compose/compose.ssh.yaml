@@ -19,7 +19,7 @@ services:
       LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD-${LDAP_ADMIN_PASSWORD:-ldapadmin}}
       LDAP_TLS_REQCERT: ${LDAP_TLS_REQCERT:-demand}
       LDAP_CA_FILE: ${LDAP_CA_FILE:+/etc/ssl/ldap-ca.pem}
-      LDAP_ADMINS: ${LDAP_ADMINS:-4alice}
+      HUB_ADMINS: ${HUB_ADMINS:-4alice}
       ACCESS_GROUP: ${ACCESS_GROUP:-sparkusers}
       CASSANDRA_HOST: cassandra
       CASSANDRA_ADMIN_USER: cassandra

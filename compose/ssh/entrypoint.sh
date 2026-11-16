@@ -8,7 +8,7 @@ umask 077
     echo "$v=${!v:-}"
   done
 } > /etc/sparkpoc/env
-echo "${LDAP_ADMINS:-}" | tr ',' '\n' > /etc/sparkpoc/admins
+echo "${HUB_ADMINS:-}" | tr ',' '\n' > /etc/sparkpoc/admins
 echo "${ACCESS_GROUP:-sparkusers}" > /etc/sparkpoc/access_group
 # katalog z plikami hosta jest niedostępny dla zwykłych użytkowników sesji SSH (czyta go tylko root)
 chmod 700 /run/sparkpoc-host
