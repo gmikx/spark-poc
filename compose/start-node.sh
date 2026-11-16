@@ -5,7 +5,7 @@
 cd "$(dirname "$0")" || exit 1
 ENV_FILE=${1:-.env.node}
 [ -f "$ENV_FILE" ] || { echo "Brak pliku $ENV_FILE"; exit 1; }
-PROJECT="sparkpoc-node-$(basename "$ENV_FILE" | sed 's/^\.env\.//; s/[^a-z0-9]/-/g')"
+PROJECT="spark-node-$(basename "$ENV_FILE" | sed 's/^\.env\.//; s/[^a-z0-9]/-/g')"
 COMPOSE=(docker compose -p "$PROJECT" -f compose.node.yaml --env-file "$ENV_FILE")
 
 trap ':' INT TERM

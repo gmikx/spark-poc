@@ -3,8 +3,8 @@
 import os
 import sys
 
-sys.path.insert(0, "/usr/local/lib/sparkpoc")
-from sparkpoc_provision import group_members
+sys.path.insert(0, "/usr/local/lib/spark")
+from spark_provision import group_members
 
 user = os.environ.get("PAM_USER", "")
 
@@ -16,7 +16,7 @@ def first_line(path):
         return ""
 
 
-group = first_line("/etc/sparkpoc/access_group") or "sparkusers"
-admins = {a.strip() for a in open("/etc/sparkpoc/admins").read().split() if a.strip()}
-allowed = group_members("/run/sparkpoc-host/etc/group", group) | admins
+group = first_line("/etc/spark/access_group") or "sparkusers"
+admins = {a.strip() for a in open("/etc/spark/admins").read().split() if a.strip()}
+allowed = group_members("/run/spark-host/etc/group", group) | admins
 sys.exit(0 if user and user in allowed else 1)

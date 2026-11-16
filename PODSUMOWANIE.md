@@ -77,7 +77,7 @@ Za cały cykl odpowiada JupyterHub z DockerSpawnerem (`hub/jupyterhub_config.py`
 **Powstawanie (start sesji):**
 1. Student loguje się, a hub sprawdza go w LDAP i jego członkostwo w grupie kursu.
 2. Hook przed startem pobiera z LDAP UID, GID i katalog domowy, zapisuje dla kontenera pliki `passwd` i `group` (potrzebne `libnss-wrapper`) oraz tworzy w Cassandrze rolę i keyspace studenta (idempotentnie).
-3. DockerSpawner tworzy kontener `sparkpoc-user-<login>` z obrazu `spark-node`:
+3. DockerSpawner tworzy kontener `spark-user-<login>` z obrazu `spark-node`:
    - podłączony do sieci klastra, więc widzi mastera Sparka, Cassandrę i Neo4j po nazwach,
    - uruchomiony jako `UID:GID` studenta z katalogiem domowym z NFS,
    - z limitami zasobów (domyślnie 2 GB RAM i 1 CPU, parametry `USER_MEM_LIMIT` i `USER_CPU_LIMIT`),

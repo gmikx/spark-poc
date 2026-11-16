@@ -1,10 +1,10 @@
 # Dołączany node obliczeniowy (uruchamiany na innej maszynie, np. laptopie).
 # Wymaga .env.node (patrz .env.node.example) oraz wan/id_ed25519.
-# docker compose -p sparkpoc-node -f compose.node.yaml --env-file .env.node up -d --build
+# docker compose -p spark-node -f compose.node.yaml --env-file .env.node up -d --build
 services:
   tunnel:
     build: ./wan
-    image: sparkpoc/wan:latest
+    image: spark/wan:latest
     command: node.sh
     cap_add: [NET_ADMIN]
     devices: [/dev/net/tun]
@@ -29,7 +29,7 @@ services:
 
   spark-worker:
     build: ./singleuser
-    image: sparkpoc/spark-node:latest
+    image: spark/spark-node:latest
     network_mode: "service:tunnel"
     depends_on:
       tunnel: {condition: service_healthy}

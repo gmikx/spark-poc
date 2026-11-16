@@ -24,7 +24,7 @@ DC=(docker compose "${FILES[@]}")
 HAS_NFS=0; case " $STACK_FILES " in *" compose.nfs.yaml "*) HAS_NFS=1 ;; esac
 
 remove_sessions() {
-  local ids; ids=$(docker ps -aq --filter name=sparkpoc-user- || true)
+  local ids; ids=$(docker ps -aq --filter name=spark-user- || true)
   [ -z "$ids" ] || docker rm -f $ids >/dev/null
 }
 
@@ -47,7 +47,7 @@ case "$CMD" in
   status)
     "${DC[@]}" ps --format 'table {{.Service}}\t{{.Status}}\t{{.Ports}}'
     echo
-    users=$(docker ps --filter name=sparkpoc-user- --format '{{.Names}}' | sed 's/sparkpoc-user-//' | paste -sd, -)
+    users=$(docker ps --filter name=spark-user- --format '{{.Names}}' | sed 's/spark-user-//' | paste -sd, -)
     echo "Sesje studentów: ${users:-brak}"
     if workers=$(curl -fsS -m 5 localhost:8080/json/ 2>/dev/null); then
       echo "$workers" | python3 -c 'import sys, json

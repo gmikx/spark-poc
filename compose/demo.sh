@@ -36,18 +36,18 @@ DC=(docker compose "${FILES[@]}")
 NODE_ENV=.env.node.demo
 node_dc() {
   if [ -f "$NODE_ENV" ]; then
-    docker compose -p sparkpoc-node -f compose.node.yaml --env-file "$NODE_ENV" "$@"
+    docker compose -p spark-node -f compose.node.yaml --env-file "$NODE_ENV" "$@"
   else
-    NODE_IP=x WAN_URL=x WAN_PATH_SECRET=x docker compose -p sparkpoc-node -f compose.node.yaml "$@"
+    NODE_IP=x WAN_URL=x WAN_PATH_SECRET=x docker compose -p spark-node -f compose.node.yaml "$@"
   fi
 }
 
 case "$ACTION" in
   status) "${DC[@]}" ps; exit ;;
   logs)   "${DC[@]}" logs -f --tail=50; exit ;;
-  down)   node_dc down --remove-orphans; "${DC[@]}" down --remove-orphans; docker rm -f $(docker ps -aq --filter name=sparkpoc-user-) 2>/dev/null || true; exit ;;
-  clean)  node_dc down -v --remove-orphans; rm -rf wan/demo "$NODE_ENV"; "${DC[@]}" down -v --remove-orphans; docker rm -f $(docker ps -aq --filter name=sparkpoc-user-) 2>/dev/null || true
-          docker volume rm $(docker volume ls -q --filter name=sparkpoc-home-) 2>/dev/null || true; exit ;;
+  down)   node_dc down --remove-orphans; "${DC[@]}" down --remove-orphans; docker rm -f $(docker ps -aq --filter name=spark-user-) 2>/dev/null || true; exit ;;
+  clean)  node_dc down -v --remove-orphans; rm -rf wan/demo "$NODE_ENV"; "${DC[@]}" down -v --remove-orphans; docker rm -f $(docker ps -aq --filter name=spark-user-) 2>/dev/null || true
+          docker volume rm $(docker volume ls -q --filter name=spark-home-) 2>/dev/null || true; exit ;;
 esac
 
 [ -f .env ] || cp .env.example .env
@@ -62,7 +62,7 @@ ensure_keys() {
   [ -f wan/demo/id_ed25519 ] && return 0
   mkdir -p wan/demo
   docker compose "${FILES[@]}" build wan-gw >/dev/null
-  docker run --rm -v "$PWD/wan/demo:/k" --entrypoint sh sparkpoc/wan:latest -c \
+  docker run --rm -v "$PWD/wan/demo:/k" --entrypoint sh spark/wan:latest -c \
     "ssh-keygen -q -t ed25519 -N '' -C demo-node -f /k/id_ed25519 && cp /k/id_ed25519.pub /k/authorized_keys && chown -R $(id -u):$(id -g) /k && chmod 600 /k/id_ed25519"
 }
 
@@ -97,7 +97,7 @@ if [ "$NODE" = 1 ]; then
   if start_node; then
     echo "Dodatkowy node jest podpięty do klastra."
   else
-    echo "UWAGA: dodatkowy node nie podłączył się (reszta działa). Szczegóły: docker logs sparkpoc-node-tunnel-1"
+    echo "UWAGA: dodatkowy node nie podłączył się (reszta działa). Szczegóły: docker logs spark-node-tunnel-1"
   fi
 fi
 
@@ -111,7 +111,7 @@ Gotowe. Wejdź w przeglądarce:
   Dashboard topologii http://localhost:8088
   Spark Master UI     http://localhost:8080 (z dodatkowym node'em widać tu dwóch workerów)
   Neo4j Browser       http://localhost:7474   (neo4j / pocpassword)
-  SSH do swojego home ssh -p 2222 4bob@localhost   (hasło bob123; dane do baz: ~/.config/sparkpoc/connection.json)
+  SSH do swojego home ssh -p 2222 4bob@localhost   (hasło bob123; dane do baz: ~/.config/spark/connection.json)
 
 Pierwsze zalogowanie tworzy kontener studenta (kilka sekund). Notebooki Pythona i Scali
 mają gotowe połączenie ze Sparkiem. Zatrzymanie: ./demo.sh down

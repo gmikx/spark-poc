@@ -10,7 +10,7 @@
 # Wycofanie: cp /etc/nsswitch.conf.bak-sparkpoc /etc/nsswitch.conf && systemctl stop nslcd
 set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "Uruchom przez sudo: sudo $0"; exit 1; }
-ENV_FILE=${ENV_FILE:-/opt/sparkpoc/compose/.env}
+ENV_FILE=${ENV_FILE:-/opt/spark/compose/.env}
 [ -r "$ENV_FILE" ] || { echo "Brak $ENV_FILE"; exit 1; }
 getv() { sed -n "s/^$1=//p" "$ENV_FILE" | tail -1 | sed -e 's/^"//' -e 's/"$//'; }
 isset() { grep -q "^$1=" "$ENV_FILE"; }

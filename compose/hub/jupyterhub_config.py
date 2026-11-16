@@ -16,7 +16,7 @@ if AUTH_MODE == "ldap":
     import sys
 
     sys.path.insert(0, "/etc/jupyterhub")
-    from sparkpoc_provision import group_members
+    from spark_provision import group_members
 
     ACCESS_GROUP = os.environ.get("ACCESS_GROUP", "sparkusers")
     GROUP_FILE = os.environ.get("ACCESS_GROUP_FILE", "/host-etc/group")
@@ -78,15 +78,15 @@ c.DockerSpawner.image = os.environ["SINGLEUSER_IMAGE"]
 c.DockerSpawner.network_name = os.environ["DOCKER_NETWORK"]
 c.DockerSpawner.use_internal_ip = True
 c.DockerSpawner.remove = True
-c.DockerSpawner.name_template = "sparkpoc-user-{username}"
+c.DockerSpawner.name_template = "spark-user-{username}"
 c.DockerSpawner.cmd = [
     "bash", "-c",
     "export SPARK_LOCAL_HOSTNAME=$(hostname -i | awk '{print $1}'); exec jupyterhub-singleuser \"$@\"", "--",
 ]
 c.DockerSpawner.notebook_dir = "/home/jovyan/work"
 c.DockerSpawner.volumes = {
-    "sparkpoc-home-{username}": "/home/jovyan/work",
-    "sparkpoc_shared-data": {"bind": "/home/jovyan/shared", "mode": "ro"},
+    "spark-home-{username}": "/home/jovyan/work",
+    "spark_shared-data": {"bind": "/home/jovyan/shared", "mode": "ro"},
 }
 c.DockerSpawner.mem_limit = os.environ["USER_MEM_LIMIT"]
 c.DockerSpawner.cpu_limit = float(os.environ["USER_CPU_LIMIT"])
@@ -153,7 +153,7 @@ def account_hook(spawner):
     import sys
 
     sys.path.insert(0, "/etc/jupyterhub")
-    import sparkpoc_provision as prov
+    import spark_provision as prov
 
     role, password = prov.ensure_cassandra_account(spawner.user.name)
     uid, gid = (int(x) for x in spawner.extra_create_kwargs["user"].split(":"))
@@ -177,9 +177,9 @@ def pre_spawn(spawner):
 
 if AUTH_MODE == "ldap":
     c.DockerSpawner.volumes = {
-        os.environ.get("HOMES_VOLUME", "sparkpoc_homes"): "/home",
-        "sparkpoc_nss": {"bind": "/nss", "mode": "ro"},
-        "sparkpoc_shared-data": {"bind": "/shared", "mode": "ro"},
+        os.environ.get("HOMES_VOLUME", "spark_homes"): "/home",
+        "spark_nss": {"bind": "/nss", "mode": "ro"},
+        "spark_shared-data": {"bind": "/shared", "mode": "ro"},
     }
     c.Spawner.pre_spawn_hook = pre_spawn
 

@@ -1,4 +1,4 @@
-name: sparkpoc
+name: spark
 
 x-spark-env: &spark-env
   SPARK_NO_DAEMONIZE: "true"
@@ -7,7 +7,7 @@ services:
   spark-master:
     restart: unless-stopped
     build: ./singleuser
-    image: sparkpoc/spark-node:latest
+    image: spark/spark-node:latest
     hostname: spark-master
     networks:
       default:
@@ -24,7 +24,7 @@ services:
 
   spark-worker:
     restart: unless-stopped
-    image: sparkpoc/spark-node:latest
+    image: spark/spark-node:latest
     depends_on: [spark-master]
     command: /opt/spark/sbin/start-worker.sh spark://spark-master:7077
     environment:
@@ -38,7 +38,7 @@ services:
 
   spark-worker-2:
     restart: unless-stopped
-    image: sparkpoc/spark-node:latest
+    image: spark/spark-node:latest
     depends_on: [spark-master]
     command: /opt/spark/sbin/start-worker.sh spark://spark-master:7077
     environment:
@@ -100,9 +100,9 @@ services:
     ports:
       - "${BIND_ADDR:-0.0.0.0}:8000:8000"
     environment:
-      SINGLEUSER_IMAGE: sparkpoc/spark-node:latest
+      SINGLEUSER_IMAGE: spark/spark-node:latest
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-pocpassword}
-      DOCKER_NETWORK: sparkpoc_net
+      DOCKER_NETWORK: spark_net
       POC_PASSWORD: ${POC_PASSWORD:-poc}
       POC_USERS: ${POC_USERS:-alice,bob,admin}
       POC_ADMINS: ${POC_ADMINS:-admin}
@@ -117,9 +117,9 @@ services:
 
   dashboard:
     build: ./dashboard
-    image: sparkpoc/dashboard:latest
+    image: spark/dashboard:latest
     environment:
-      DOCKER_NETWORK: sparkpoc_net
+      DOCKER_NETWORK: spark_net
       LOCAL_NODE_NAME: ${LOCAL_NODE_NAME:-sandbox}
       NODE_NAMES: ${NODE_NAMES:-10.77.0.200=laptop,10.77.0.201=laptop2}
     ports:
@@ -140,7 +140,7 @@ volumes:
 
 networks:
   default:
-    name: sparkpoc_net
+    name: spark_net
     ipam:
       config:
         - subnet: 10.77.0.0/24

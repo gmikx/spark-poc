@@ -6,8 +6,8 @@ import docker
 import requests
 from flask import Flask, jsonify, send_from_directory
 
-NETWORK = os.environ.get("DOCKER_NETWORK", "sparkpoc_net")
-PROJECT = os.environ.get("COMPOSE_PROJECT", "sparkpoc")
+NETWORK = os.environ.get("DOCKER_NETWORK", "spark_net")
+PROJECT = os.environ.get("COMPOSE_PROJECT", "spark")
 MASTER_URL = os.environ.get("SPARK_MASTER_UI", "http://spark-master:8080")
 LOCAL_NODE = os.environ.get("LOCAL_NODE_NAME", "host")
 NODE_NAMES = dict(p.split("=", 1) for p in os.environ.get("NODE_NAMES", "").split(",") if "=" in p)
@@ -33,7 +33,7 @@ def role_of(name, labels):
     service = labels.get("com.docker.compose.service")
     if service in ROLES:
         return ROLES[service]
-    if name.startswith("sparkpoc-user-"):
+    if name.startswith("spark-user-"):
         return "notebook"
     return "other"
 

@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: ssh/Dockerfile
-    image: sparkpoc/ssh-gateway:latest
+    image: spark/ssh-gateway:latest
     hostname: ssh-gateway
     depends_on:
       cassandra:
@@ -31,7 +31,7 @@ services:
       - "${SSH_BIND_ADDR:-${BIND_ADDR:-0.0.0.0}}:${SSH_PORT:-2222}:22"
     volumes:
       - homes:/home
-      - ${HOST_ETC_DIR:-./access/demo-etc}:/run/sparkpoc-host/etc:ro
+      - ${HOST_ETC_DIR:-./access/demo-etc}:/run/spark-host/etc:ro
       - ssh-hostkeys:/etc/ssh/hostkeys
       - ${LDAP_CA_FILE:-./ldap/no-ca.pem}:/etc/ssl/ldap-ca.pem:ro
     mem_limit: ${SSH_MEM_LIMIT:-8g}

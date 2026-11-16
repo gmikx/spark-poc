@@ -7,11 +7,11 @@ umask 077
   for v in CASSANDRA_HOST CASSANDRA_ADMIN_USER CASSANDRA_ADMIN_PASSWORD CASSANDRA_PASSWORD_SECRET NEO4J_URI NEO4J_PASSWORD; do
     echo "$v=${!v:-}"
   done
-} > /etc/sparkpoc/env
-echo "${HUB_ADMINS:-}" | tr ',' '\n' > /etc/sparkpoc/admins
-echo "${ACCESS_GROUP:-sparkusers}" > /etc/sparkpoc/access_group
+} > /etc/spark/env
+echo "${HUB_ADMINS:-}" | tr ',' '\n' > /etc/spark/admins
+echo "${ACCESS_GROUP:-sparkusers}" > /etc/spark/access_group
 # katalog z plikami hosta jest niedostępny dla zwykłych użytkowników sesji SSH (czyta go tylko root)
-chmod 700 /run/sparkpoc-host
+chmod 700 /run/spark-host
 umask 022
 
 # nslcd: użytkownicy z LDAP widziani jako konta systemowe (NSS) i uwierzytelnianie (PAM)

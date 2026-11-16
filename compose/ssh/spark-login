@@ -1,13 +1,13 @@
 #!/usr/bin/python3
-# Przy logowaniu: konto w Cassandrze i plik ~/.config/sparkpoc/connection.json (nigdy nie blokuje logowania).
-# Zdarzenia i błędy trafiają do /var/log/sparkpoc-login.log, bo pam_exec nie pokazuje stderr.
+# Przy logowaniu: konto w Cassandrze i plik ~/.config/spark/connection.json (nigdy nie blokuje logowania).
+# Zdarzenia i błędy trafiają do /var/log/spark-login.log, bo pam_exec nie pokazuje stderr.
 import datetime
 import os
 import pwd
 import sys
 import traceback
 
-LOG = "/var/log/sparkpoc-login.log"
+LOG = "/var/log/spark-login.log"
 
 
 def log(message):
@@ -17,11 +17,11 @@ def log(message):
 
 user = os.environ.get("PAM_USER", "?")
 try:
-    for line in open("/etc/sparkpoc/env"):
+    for line in open("/etc/spark/env"):
         key, _, value = line.rstrip("\n").partition("=")
         os.environ[key] = value
-    sys.path.insert(0, "/usr/local/lib/sparkpoc")
-    import sparkpoc_provision as prov
+    sys.path.insert(0, "/usr/local/lib/spark")
+    import spark_provision as prov
 
     entry = pwd.getpwnam(user)
     prov.ensure_cassandra_account(user)

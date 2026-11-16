@@ -82,9 +82,9 @@ def connection_info(login):
 
 
 def write_connection_file(home, uid, gid, login):
-    """Zapisuje ~/.config/sparkpoc/connection.json (prawa 600) z danymi dostępu do Cassandry i Neo4j."""
+    """Zapisuje ~/.config/spark/connection.json (prawa 600) z danymi dostępu do Cassandry i Neo4j."""
     config_dir = os.path.join(home, ".config")
-    target_dir = os.path.join(config_dir, "sparkpoc")
+    target_dir = os.path.join(config_dir, "spark")
     for d in (config_dir, target_dir):
         if not os.path.isdir(d):
             os.mkdir(d, 0o700)

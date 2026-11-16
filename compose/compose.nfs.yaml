@@ -2,13 +2,13 @@
 # eksport po adresie IP klienta, katalogi domowe istnieją wcześniej i należą do UID z LDAP.
 # Uruchomienie (razem z LDAP):
 #   docker compose -f compose.yaml -f compose.ldap.yaml -f compose.nfs.yaml up -d --build
-# Podsieć sparkpoc_net (10.77.0.0/24) jest zdefiniowana w compose.yaml; serwer NFS ma w niej stały adres 10.77.0.13.
+# Podsieć spark_net (10.77.0.0/24) jest zdefiniowana w compose.yaml; serwer NFS ma w niej stały adres 10.77.0.13.
 
 services:
   nfs:
     restart: unless-stopped
     build: ./nfs
-    image: sparkpoc/nfs-server:latest
+    image: spark/nfs-server:latest
     privileged: true
     hostname: nfs
     environment:
@@ -30,7 +30,7 @@ services:
       nfs:
         condition: service_healthy
     environment:
-      HOMES_VOLUME: sparkpoc_homes-nfs
+      HOMES_VOLUME: spark_homes-nfs
     volumes:
       - homes-nfs:/home
 

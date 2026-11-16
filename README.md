@@ -59,14 +59,14 @@ Parametry (zasoby, hasła, lista użytkowników) są w zmiennych środowiskowych
 ```mermaid
 flowchart LR
     B[przeglądarka] -->|:8000| H[jupyterhub<br/>DockerSpawner]
-    H -->|docker.sock| U1[sparkpoc-user-alice]
-    H -->|docker.sock| U2[sparkpoc-user-bob]
+    H -->|docker.sock| U1[spark-user-alice]
+    H -->|docker.sock| U2[spark-user-bob]
     U1 & U2 -->|driver ↔ executor| M[spark-master] --> W[spark-worker]
     U1 & U2 --> C[(cassandra)]
     U1 & U2 --> N[(neo4j)]
 ```
 
-Jeden obraz `sparkpoc/spark-node` służy jako master, worker i serwer użytkownika. Dzięki temu Spark, Java i Python są identyczne wszędzie. To ważne, bo PySpark wymaga zgodnej wersji Pythona na driverze i w executorach.
+Jeden obraz `spark/spark-node` służy jako master, worker i serwer użytkownika. Dzięki temu Spark, Java i Python są identyczne wszędzie. To ważne, bo PySpark wymaga zgodnej wersji Pythona na driverze i w executorach.
 
 ## Wyniki testów (Spark 4.0.0, Java 17, Python 3.10, Scala 2.13.16)
 
@@ -156,11 +156,11 @@ Kontener `ssh-gateway` (port `SSH_PORT`, domyślnie 2222) uwierzytelnia przez te
 ssh -p 2222 4bob@localhost     # na serwerze przez tunel SSH (BIND_ADDR=127.0.0.1); udostępnienie w sieci: SSH_BIND_ADDR
 ```
 
-W sesji są Python z PySparkiem, Java i sterowniki Cassandry i Neo4j, więc własne skrypty działają tak jak w notebooku. Logowanie zakłada (idempotentnie) konto w Cassandrze i zapisuje `~/.config/sparkpoc/connection.json` (prawa 600) z danymi dostępu:
+W sesji są Python z PySparkiem, Java i sterowniki Cassandry i Neo4j, więc własne skrypty działają tak jak w notebooku. Logowanie zakłada (idempotentnie) konto w Cassandrze i zapisuje `~/.config/spark/connection.json` (prawa 600) z danymi dostępu:
 
 ```python
 import json, os
-cfg = json.load(open(os.path.expanduser("~/.config/sparkpoc/connection.json")))
+cfg = json.load(open(os.path.expanduser("~/.config/spark/connection.json")))
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import Cluster
 c = cfg["cassandra"]
@@ -170,7 +170,7 @@ n = cfg["neo4j"]
 driver = GraphDatabase.driver(n["uri"], auth=(n["user"], n["password"]))
 ```
 
-Ten sam plik (i te same zmienne `CASSANDRA_*`, `NEO4J_*`) dostają też notebooki. Hub i bramka korzystają ze wspólnej logiki (`provision/sparkpoc_provision.py`). Porty baz są też publikowane na `BIND_ADDR` (Cassandra 9042, Neo4j 7687 i 7474), więc z laptopa można połączyć się przez tunel SSH.
+Ten sam plik (i te same zmienne `CASSANDRA_*`, `NEO4J_*`) dostają też notebooki. Hub i bramka korzystają ze wspólnej logiki (`provision/spark_provision.py`). Porty baz są też publikowane na `BIND_ADDR` (Cassandra 9042, Neo4j 7687 i 7474), więc z laptopa można połączyć się przez tunel SSH.
 
 ### Neo4j jako silnik obliczeń (Graph Data Science)
 
@@ -228,8 +228,8 @@ Symuluje najtrudniejszy przypadek, czyli filer jak na Taurusie: **NFSv4.2, `sec=
 ```bash
 cd compose
 F="-f compose.yaml -f compose.ldap.yaml -f compose.nfs.yaml"
-docker compose -f compose.yaml -f compose.ldap.yaml down     # przy pierwszym przełączeniu: zmienia się podsieć sparkpoc_net
-docker rm -f sparkpoc-user-4alice sparkpoc-user-4bob 2>/dev/null
+docker compose -f compose.yaml -f compose.ldap.yaml down     # przy pierwszym przełączeniu: zmienia się podsieć spark_net
+docker rm -f spark-user-4alice spark-user-4bob 2>/dev/null
 docker compose $F up -d nfs      # NFS musi działać, zanim Docker zamontuje wolumen
 docker compose $F up -d
 ```
@@ -260,7 +260,7 @@ Montowanie robi demon Dockera przy tworzeniu kontenera (wolumen `type: nfs`), cz
 
 ## Dashboard topologii i dodatkowe node'y
 
-Dashboard (`dashboard/`, port 8088) rysuje graf kontenerów sieci `sparkpoc_net` (zależności z `depends_on`, notebooki użytkowników, workery zarejestrowane w masterze Sparka). Workery z innych maszyn pojawiają się same, w osobnej ramce node'a (nazwy w `NODE_NAMES`).
+Dashboard (`dashboard/`, port 8088) rysuje graf kontenerów sieci `spark_net` (zależności z `depends_on`, notebooki użytkowników, workery zarejestrowane w masterze Sparka). Workery z innych maszyn pojawiają się same, w osobnej ramce node'a (nazwy w `NODE_NAMES`).
 
 Serwer główny (`compose.cluster.yaml` dodaje wejście dla node'ów):
 
@@ -274,7 +274,7 @@ Dołączany node (inna maszyna, wymaga `wan/id_ed25519`, którego klucz publiczn
 
 ```bash
 cp .env.node.example .env.node   # NODE_IP, WAN_URL, WAN_PATH_SECRET
-docker compose -p sparkpoc-node -f compose.node.yaml --env-file .env.node up -d --build
+docker compose -p spark-node -f compose.node.yaml --env-file .env.node up -d --build
 ```
 
 Transport: wss (wstunnel, przez nginx na `nas`) -> `ssh -w` (tun L3) -> kontener `wan-gw` z proxy-ARP, który wystawia `NODE_IP` w podsieci `10.77.0.0/24`. Dzięki temu driver, executory i master widzą się po zwykłych adresach IP. Sprawdzone: job PySpark z executorami na obu node'ach. Szablony vhostów nginx: `nginx/`.

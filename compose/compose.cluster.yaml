@@ -3,7 +3,7 @@
 services:
   wan-gw:
     build: ./wan
-    image: sparkpoc/wan:latest
+    image: spark/wan:latest
     command: gw.sh
     networks:
       default:
