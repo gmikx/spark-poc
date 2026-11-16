@@ -1,0 +1,32 @@
+#!/usr/bin/python3
+# Przy logowaniu: konto w Cassandrze i plik ~/.config/sparkpoc/connection.json (nigdy nie blokuje logowania).
+# Zdarzenia i błędy trafiają do /var/log/sparkpoc-login.log, bo pam_exec nie pokazuje stderr.
+import datetime
+import os
+import pwd
+import sys
+import traceback
+
+LOG = "/var/log/sparkpoc-login.log"
+
+
+def log(message):
+    with open(LOG, "a") as f:
+        f.write(f"{datetime.datetime.now().isoformat(timespec='seconds')} {message}\n")
+
+
+user = os.environ.get("PAM_USER", "?")
+try:
+    for line in open("/etc/sparkpoc/env"):
+        key, _, value = line.rstrip("\n").partition("=")
+        os.environ[key] = value
+    sys.path.insert(0, "/usr/local/lib/sparkpoc")
+    import sparkpoc_provision as prov
+
+    entry = pwd.getpwnam(user)
+    prov.ensure_cassandra_account(user)
+    path = prov.write_connection_file(entry.pw_dir, entry.pw_uid, entry.pw_gid, user)
+    log(f"ok {user} {path}")
+except Exception:
+    log(f"BLAD {user} (uid={os.getuid()} python={sys.executable} path={sys.path}): {traceback.format_exc()}")
+sys.exit(0)

@@ -34,6 +34,19 @@ services:
     volumes:
       - spark-local-worker:/tmp/spark
 
+  spark-worker-2:
+    image: sparkpoc/spark-node:latest
+    depends_on: [spark-master]
+    command: /opt/spark/sbin/start-worker.sh spark://spark-master:7077
+    environment:
+      <<: *spark-env
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2g}
+      SPARK_LOCAL_DIRS: /tmp/spark
+      SPARK_WORKER_DIR: /tmp/spark/work
+    volumes:
+      - spark-local-worker2:/tmp/spark
+
   cassandra:
     image: cassandra:5.0
     networks:
@@ -42,6 +55,8 @@ services:
     environment:
       MAX_HEAP_SIZE: 512M
       HEAP_NEWSIZE: 128M
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:9042:9042"
     volumes:
       - cassandra-data:/var/lib/cassandra
     healthcheck:
@@ -57,21 +72,30 @@ services:
         ipv4_address: 10.77.0.12
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-pocpassword}
-      NEO4J_server_memory_heap_initial__size: 512m
-      NEO4J_server_memory_heap_max__size: 512m
-      NEO4J_server_memory_pagecache_size: 256m
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP:-1g}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP:-1g}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-512m}
+      # Graph Data Science (algorytmy grafowe); biblioteka pobierana przy pierwszym starcie
+      NEO4J_PLUGINS: '["graph-data-science"]'
+      NEO4J_dbms_security_procedures_unrestricted: gds.*
+      NEO4J_dbms_security_procedures_allowlist: gds.*
     ports:
       - "${BIND_ADDR:-0.0.0.0}:7474:7474"
+      - "${BIND_ADDR:-0.0.0.0}:7687:7687"
     volumes:
       - neo4j-data:/data
+      - neo4j-plugins:/plugins
 
   jupyterhub:
-    build: ./hub
+    build:
+      context: .
+      dockerfile: hub/Dockerfile
     depends_on: [spark-master]
     ports:
       - "${BIND_ADDR:-0.0.0.0}:8000:8000"
     environment:
       SINGLEUSER_IMAGE: sparkpoc/spark-node:latest
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-pocpassword}
       DOCKER_NETWORK: sparkpoc_net
       POC_PASSWORD: ${POC_PASSWORD:-poc}
       POC_USERS: ${POC_USERS:-alice,bob,admin}
@@ -101,8 +125,10 @@ services:
 volumes:
   spark-local-master:
   spark-local-worker:
+  spark-local-worker2:
   cassandra-data:
   neo4j-data:
+  neo4j-plugins:
   hub-data:
   shared-data:
 

@@ -117,7 +117,7 @@ docker compose up -d --build jupyterhub   # i: docker compose rm -sf openldap
 
 Konta testowe (naśladują układ z Taurusa: login `4nazwisko`, UID `<rok><numer>`, GID rocznika, home `/home/stud<rok>/<login>`):
 
-| Login | Hasło | Grupa `sparkusers` | UID:GID |
+| Login | Hasło | Na liście dostępu huba (`access/allowed_users.txt`) | UID:GID |
 |---|---|---|---|
 | `4alice` (admin Huba) | `alice123` | tak | 2024001:2024 |
 | `4bob` | `bob123` | tak | 2024002:2024 |
@@ -128,7 +128,7 @@ Konta testowe (naśladują układ z Taurusa: login `4nazwisko`, UID `<rok><numer
 | Test | Wynik |
 |---|---|
 | Logowanie `4alice` i `4bob` | działa |
-| `4carol` (poprawne hasło, brak grupy) i złe hasło | odrzucone |
+| `4carol` (poprawne hasło, brak na liście dostępu) i złe hasło | odrzucone |
 | Kontener studenta uruchamiany z UID:GID z LDAP | działa (`uid=2024001(4alice) gid=2024(g2024)`) |
 | Katalog domowy `/home/stud2024/<login>` na wspólnym wolumenie, pliki z właściwym właścicielem | działa (symuluje NFS) |
 | PySpark (+UDF), kernel Scala, connectory Cassandry i Neo4j jako zwykli użytkownicy | działa |
@@ -137,10 +137,42 @@ Konta testowe (naśladują układ z Taurusa: login `4nazwisko`, UID `<rok><numer
 
 LDAP służy tylko do **uwierzytelnienia** (login i hasło). O dostępie do JupyterHuba decyduje lista `compose/access/allowed_users.txt` na serwerze (jeden login na linię, plik jest poza gitem; wzór: `allowed_users.example.txt`). Hub czyta ją przy każdym logowaniu, więc dopisanie lub usunięcie osoby nie wymaga restartu. Administratorzy z `LDAP_ADMINS` mają dostęp zawsze. Przynależność do grup LDAP nie jest używana.
 
+### Dostęp przez SSH do własnego katalogu domowego (`compose.ssh.yaml`)
+
+Kontener `ssh-gateway` (port `SSH_PORT`, domyślnie 2222) uwierzytelnia przez ten sam LDAP, stosuje tę samą listę dostępu (`access/allowed_users.txt` plus administratorzy) i montuje ten sam `/home` co notebooki. Użytkownik wchodzi jako własny UID z LDAP do `/home/stud<rok>/<login>`:
+
+```bash
+ssh -p 2222 4bob@localhost     # na serwerze przez tunel SSH (BIND_ADDR=127.0.0.1); udostępnienie w sieci: SSH_BIND_ADDR
+```
+
+W sesji są Python z PySparkiem, Java i sterowniki Cassandry i Neo4j, więc własne skrypty działają tak jak w notebooku. Logowanie zakłada (idempotentnie) konto w Cassandrze i zapisuje `~/.config/sparkpoc/connection.json` (prawa 600) z danymi dostępu:
+
+```python
+import json, os
+cfg = json.load(open(os.path.expanduser("~/.config/sparkpoc/connection.json")))
+from cassandra.auth import PlainTextAuthProvider
+from cassandra.cluster import Cluster
+c = cfg["cassandra"]
+session = Cluster(c["hosts"], port=c["port"], auth_provider=PlainTextAuthProvider(c["user"], c["password"])).connect(c["keyspace"])
+from neo4j import GraphDatabase
+n = cfg["neo4j"]
+driver = GraphDatabase.driver(n["uri"], auth=(n["user"], n["password"]))
+```
+
+Ten sam plik (i te same zmienne `CASSANDRA_*`, `NEO4J_*`) dostają też notebooki. Hub i bramka korzystają ze wspólnej logiki (`provision/sparkpoc_provision.py`). Porty baz są też publikowane na `BIND_ADDR` (Cassandra 9042, Neo4j 7687 i 7474), więc z laptopa można połączyć się przez tunel SSH.
+
+### Neo4j jako silnik obliczeń (Graph Data Science)
+
+Neo4j Community ma jedną bazę i nie ma ról, więc osobnych przestrzeni dla studentów nie tworzymy. Wszyscy używają jednego konta (`neo4j`), a dane w Neo4j traktujemy jako tymczasowe, wejście do obliczeń. Rozdzielenie robi konwencja: grafy projekcji GDS (w pamięci) nazywa się z prefiksem studenta (`graph_prefix` w `connection.json` i zmienna `NEO4J_GRAPH_PREFIX`, np. `u4bob_siec`), a etykiety węzłów warto poprzedzać tym samym prefiksem. Biblioteka GDS (wersja Community) jest instalowana przy pierwszym starcie kontenera (wymaga dostępu do internetu) i trzymana w wolumenie `neo4j-plugins`. Sprawdzone: `gds.graph.project`, `gds.pageRank.stream`, `gds.wcc.stream`. Wersja Community ma ograniczenia (m.in. współbieżność do 4 wątków). Jest to rozdzielenie konwencjonalne, a nie wymuszone: student może zobaczyć i zmienić cudze dane.
+
+### Dwa workery Sparka
+
+`compose.yaml` zawiera `spark-worker` i `spark-worker-2` (po `SPARK_WORKER_CORES` rdzeni i `SPARK_WORKER_MEMORY` pamięci). Master rozkłada executory na oba (sprawdzone: zadanie z dwoma executorami dało po jednym na każdym workerze).
+
 ### Znaleziska, które mogą dotyczyć prawdziwego środowiska
 
 1. **Login zaczynający się od cyfry** (`4giza`) jest domyślnie odrzucany przez `ldapauthenticator` (`valid_username_regex`). Trzeba rozluźnić wyrażenie regularne. Zrobione w konfiguracji.
-2. **Sprawdzanie grupy odbywa się z uprawnieniami samego użytkownika.** Jeśli zwykły użytkownik nie może czytać grup w LDAP (domyślne ACL w tym obrazie tak blokują), grupa nigdy nie „pasuje" i logowanie jest odrzucane bez czytelnego komunikatu. W PoC dodano ACL pozwalający czytać `ou=groups` (`ldap/02-security.ldif`). **To pytanie do administratora LDAP:** czy zalogowany użytkownik widzi członków grup, czy jest atrybut `memberOf` na własnym wpisie.
+2. **Wpisy LDAP są czytelne tylko dla właściciela i admina** (ACL w `ldap/02-security.ldif`), więc hub i bramka SSH czytają UID, GID i katalog domowy kontem serwisowym (w PoC: admin LDAP, docelowo konto tylko do odczytu). Przynależność do grup LDAP nie jest używana, patrz sekcja o autoryzacji.
 3. **Dowolny UID bez wpisu w `/etc/passwd` w kontenerze** psuje Sparka. Java widzi `user.home=?`, a Hadoop zgłasza `invalid null input: name`. Rozwiązanie w PoC: `libnss-wrapper` oraz pliki passwd/group generowane przez Hub przy starcie sesji. W produkcji alternatywą jest SSSD udostępniony do kontenera lub uruchamianie kontenerów z passwd z hosta.
 4. **Katalog roboczy kontenera** musi być zapisywalny dla UID studenta (Spark tworzy `artifacts` w bieżącym katalogu). Ustawiony na home użytkownika.
 5. **Konfiguracja Huba nie może leżeć w wolumenie `hub-data`**, bo Docker kopiuje do nowego wolumenu zawartość obrazu tylko raz i późniejsze zmiany obrazu są ignorowane. Config trafił do `/etc/jupyterhub/`.

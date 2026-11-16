@@ -1,0 +1,39 @@
+# Nakładka na compose.yaml + compose.ldap.yaml: bramka SSH do własnego katalogu domowego.
+# Użytkownik (LDAP, ta sama lista dostępu co w hubie) loguje się przez SSH, widzi ten sam /home co w notebookach
+# i może uruchamiać własne skrypty z dostępem do Cassandry i Neo4j.
+services:
+  ssh-gateway:
+    build:
+      context: .
+      dockerfile: ssh/Dockerfile
+    image: sparkpoc/ssh-gateway:latest
+    hostname: ssh-gateway
+    depends_on:
+      openldap:
+        condition: service_started
+      cassandra:
+        condition: service_healthy
+    environment:
+      LDAP_HOST: openldap
+      LDAP_BASE_DN: dc=poc,dc=local
+      LDAP_BIND_DN: cn=admin,dc=poc,dc=local
+      LDAP_BIND_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
+      LDAP_ADMINS: ${LDAP_ADMINS:-4alice}
+      CASSANDRA_HOST: cassandra
+      CASSANDRA_ADMIN_USER: cassandra
+      CASSANDRA_ADMIN_PASSWORD: ${CASSANDRA_ADMIN_PASSWORD:-cassandra}
+      CASSANDRA_PASSWORD_SECRET: ${CASSANDRA_PASSWORD_SECRET:-poc-secret-change-me}
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-pocpassword}
+    ports:
+      - "${SSH_BIND_ADDR:-${BIND_ADDR:-0.0.0.0}}:${SSH_PORT:-2222}:22"
+    volumes:
+      - homes:/home
+      - ./access:/etc/sparkpoc/access:ro
+      - ssh-hostkeys:/etc/ssh/hostkeys
+    mem_limit: ${SSH_MEM_LIMIT:-8g}
+    cpus: ${SSH_CPUS:-4}
+    restart: unless-stopped
+
+volumes:
+  ssh-hostkeys:

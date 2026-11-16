@@ -1,0 +1,19 @@
+#!/usr/bin/python3
+# Kto może wejść przez SSH: ta sama lista co dla JupyterHuba (access/allowed_users.txt) + administratorzy.
+import os
+import sys
+
+user = os.environ.get("PAM_USER", "")
+
+
+def read(path):
+    try:
+        with open(path) as f:
+            lines = (line.split("#", 1)[0].strip() for line in f)
+            return {line for line in lines if line}
+    except OSError:
+        return set()
+
+
+allowed = read("/etc/sparkpoc/access/allowed_users.txt") | read("/etc/sparkpoc/admins")
+sys.exit(0 if user and user in allowed else 1)

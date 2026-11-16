@@ -1,0 +1,7 @@
+auth     requisite  pam_nologin.so
+auth     required   pam_ldap.so
+account  requisite  pam_exec.so quiet /usr/local/bin/sparkpoc-authz
+account  required   pam_permit.so
+session  required   pam_mkhomedir.so skel=/etc/skel umask=0077
+session  optional   pam_exec.so quiet /usr/local/bin/sparkpoc-login
+session  required   pam_permit.so

@@ -26,7 +26,7 @@ command -v docker >/dev/null || { echo "Brak Dockera. Zainstaluj Docker Desktop 
 docker compose version >/dev/null 2>&1 || { echo "Brak wtyczki 'docker compose' (v2)."; exit 1; }
 docker info >/dev/null 2>&1 || { echo "Docker nie jest uruchomiony. Włącz Docker Desktop / demona."; exit 1; }
 
-FILES=(-f compose.yaml -f compose.ldap.yaml)
+FILES=(-f compose.yaml -f compose.ldap.yaml -f compose.ssh.yaml)
 [ "$NFS" = 1 ] && FILES+=(-f compose.nfs.yaml)
 [ "$NODE" = 1 ] && FILES+=(-f compose.cluster.yaml)
 export LOCAL_NODE_NAME="${LOCAL_NODE_NAME:-$(hostname -s)}"
@@ -87,6 +87,7 @@ ENV
 
 [ "$NODE" = 1 ] && ensure_keys
 echo "Budowanie i start (pierwszy raz potrwa kilka-kilkanaście minut)..."
+"${DC[@]}" build spark-master   # obraz spark-node jest bazą dla bramki SSH
 if [ "$NFS" = 1 ]; then
   "${DC[@]}" up -d --build nfs
 fi
@@ -111,6 +112,7 @@ Gotowe. Wejdź w przeglądarce:
   Dashboard topologii http://localhost:8088
   Spark Master UI     http://localhost:8080 (z dodatkowym node'em widać tu dwóch workerów)
   Neo4j Browser       http://localhost:7474   (neo4j / pocpassword)
+  SSH do swojego home ssh -p 2222 4bob@localhost   (hasło bob123; dane do baz: ~/.config/sparkpoc/connection.json)
 
 Pierwsze zalogowanie tworzy kontener studenta (kilka sekund). Notebooki Pythona i Scali
 mają gotowe połączenie ze Sparkiem. Zatrzymanie: ./demo.sh down

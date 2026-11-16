@@ -41,9 +41,3 @@ gidNumber: 2023
 homeDirectory: /home/stud2023/4carol
 loginShell: /bin/bash
 userPassword: carol123
-
-dn: cn=sparkusers,ou=groups,dc=poc,dc=local
-objectClass: groupOfNames
-cn: sparkusers
-member: uid=4alice,ou=people,dc=poc,dc=local
-member: uid=4bob,ou=people,dc=poc,dc=local

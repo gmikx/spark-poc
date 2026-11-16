@@ -68,6 +68,8 @@ c.DockerSpawner.cpu_limit = float(os.environ["USER_CPU_LIMIT"])
 c.DockerSpawner.environment = {
     "CASSANDRA_HOST": "cassandra",
     "NEO4J_URI": "bolt://neo4j:7687",
+    "NEO4J_USER": "neo4j",
+    "NEO4J_PASSWORD": os.environ.get("NEO4J_PASSWORD", "pocpassword"),
 }
 
 
@@ -115,48 +117,30 @@ def ldap_identity_hook(spawner):
     }
 
 
-def cassandra_account_hook(spawner):
-    import hashlib
-    import hmac
-    import re
+def account_hook(spawner):
+    import sys
 
-    from cassandra.auth import PlainTextAuthProvider
-    from cassandra.cluster import Cluster
+    sys.path.insert(0, "/etc/jupyterhub")
+    import sparkpoc_provision as prov
 
-    role = "u" + re.sub(r"[^a-z0-9_]", "_", spawner.user.name)
-    secret = os.environ["CASSANDRA_PASSWORD_SECRET"].encode()
-    password = hmac.new(secret, role.encode(), hashlib.sha256).hexdigest()[:32]
-
-    cluster = Cluster(
-        [os.environ["CASSANDRA_HOST"]],
-        auth_provider=PlainTextAuthProvider(
-            os.environ["CASSANDRA_ADMIN_USER"], os.environ["CASSANDRA_ADMIN_PASSWORD"]
-        ),
-    )
-    try:
-        session = cluster.connect()
-        session.execute(
-            f"CREATE ROLE IF NOT EXISTS \"{role}\" WITH PASSWORD = '{password}' AND LOGIN = true"
-        )
-        session.execute(
-            f"CREATE KEYSPACE IF NOT EXISTS \"{role}\" WITH replication = "
-            "{'class': 'SimpleStrategy', 'replication_factor': 1}"
-        )
-        session.execute(f"GRANT ALL PERMISSIONS ON KEYSPACE \"{role}\" TO \"{role}\"")
-    finally:
-        cluster.shutdown()
+    role, password = prov.ensure_cassandra_account(spawner.user.name)
+    uid, gid = (int(x) for x in spawner.extra_create_kwargs["user"].split(":"))
+    prov.write_connection_file(spawner.environment["HOME"], uid, gid, spawner.user.name)
 
     spawner.environment = {
         **spawner.environment,
         "CASSANDRA_USER": role,
         "CASSANDRA_PASSWORD": password,
         "CASSANDRA_KEYSPACE": role,
+        "NEO4J_USER": "neo4j",
+        "NEO4J_PASSWORD": os.environ["NEO4J_PASSWORD"],
+        "NEO4J_GRAPH_PREFIX": role + "_",
     }
 
 
 def pre_spawn(spawner):
     ldap_identity_hook(spawner)
-    cassandra_account_hook(spawner)
+    account_hook(spawner)
 
 
 if AUTH_MODE == "ldap":

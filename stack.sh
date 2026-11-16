@@ -10,8 +10,8 @@
 #   ./stack.sh logs [usługa]   logi (na żywo)
 #   ./stack.sh down        usuń kontenery i sieć (wolumeny z danymi zostają)
 #
-# Zestaw plików compose można zmienić w .env: STACK_FILES="compose.yaml compose.ldap.yaml compose.nfs.yaml"
-# (dodaj compose.cluster.yaml, żeby przyjmować dodatkowe node'y; usuń compose.nfs.yaml, żeby pominąć NFS).
+# Zestaw plików compose można zmienić w .env: STACK_FILES="compose.yaml compose.ldap.yaml compose.ssh.yaml"
+# (dodaj compose.cluster.yaml, żeby przyjmować dodatkowe node'y, compose.nfs.yaml dla symulowanego NFS; usuń compose.ssh.yaml, żeby pominąć bramkę SSH).
 set -euo pipefail
 cd "$(dirname "$0")/compose"
 umask 002
@@ -19,7 +19,7 @@ umask 002
 [ -f .env ] || { echo "Brak pliku .env (skopiuj .env.example i ustaw własne hasła)."; exit 1; }
 [ -f access/allowed_users.txt ] || cp access/allowed_users.example.txt access/allowed_users.txt   # lista osób dopuszczonych do huba
 STACK_FILES=$(sed -n 's/^STACK_FILES=//p' .env | tail -1 | tr -d '"')
-STACK_FILES=${STACK_FILES:-compose.yaml compose.ldap.yaml compose.nfs.yaml}
+STACK_FILES=${STACK_FILES:-compose.yaml compose.ldap.yaml compose.ssh.yaml}
 FILES=(); for f in $STACK_FILES; do FILES+=(-f "$f"); done
 DC=(docker compose "${FILES[@]}")
 HAS_NFS=0; case " $STACK_FILES " in *" compose.nfs.yaml "*) HAS_NFS=1 ;; esac
@@ -37,7 +37,8 @@ bring_up() {
 
 CMD=${1:-status}; shift || true
 case "$CMD" in
-  up)      [ "$HAS_NFS" = 1 ] && "${DC[@]}" up -d --build nfs && sleep 5
+  up)      "${DC[@]}" build spark-master   # obraz spark-node jest bazą dla bramki SSH
+           [ "$HAS_NFS" = 1 ] && "${DC[@]}" up -d --build nfs && sleep 5
            "${DC[@]}" up -d --build --wait --wait-timeout 900 ;;
   start)   bring_up ;;
   stop)    remove_sessions; "${DC[@]}" stop ;;
