@@ -5,6 +5,7 @@ x-spark-env: &spark-env
 
 services:
   spark-master:
+    restart: unless-stopped
     build: ./singleuser
     image: sparkpoc/spark-node:latest
     hostname: spark-master
@@ -22,6 +23,7 @@ services:
       - spark-local-master:/tmp/spark
 
   spark-worker:
+    restart: unless-stopped
     image: sparkpoc/spark-node:latest
     depends_on: [spark-master]
     command: /opt/spark/sbin/start-worker.sh spark://spark-master:7077
@@ -35,6 +37,7 @@ services:
       - spark-local-worker:/tmp/spark
 
   spark-worker-2:
+    restart: unless-stopped
     image: sparkpoc/spark-node:latest
     depends_on: [spark-master]
     command: /opt/spark/sbin/start-worker.sh spark://spark-master:7077
@@ -48,6 +51,7 @@ services:
       - spark-local-worker2:/tmp/spark
 
   cassandra:
+    restart: unless-stopped
     image: cassandra:5.0
     networks:
       default:
@@ -66,6 +70,7 @@ services:
       retries: 20
 
   neo4j:
+    restart: unless-stopped
     image: neo4j:5-community
     networks:
       default:
@@ -87,6 +92,7 @@ services:
       - neo4j-plugins:/plugins
 
   jupyterhub:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: hub/Dockerfile

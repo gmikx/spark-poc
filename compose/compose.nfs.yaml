@@ -6,6 +6,7 @@
 
 services:
   nfs:
+    restart: unless-stopped
     build: ./nfs
     image: sparkpoc/nfs-server:latest
     privileged: true
