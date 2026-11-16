@@ -9,7 +9,7 @@ RUN apt-get update \
 RUN pip3 install --no-cache-dir \
       "jupyterhub==5.*" jupyterlab notebook ipykernel \
       pyspark==4.0.0 pandas matplotlib \
-      cassandra-driver neo4j
+      cassandra-driver neo4j findspark
 
 ENV COURSIER_CACHE=/opt/coursier-cache
 ARG ALMOND_VERSION=0.14.1
