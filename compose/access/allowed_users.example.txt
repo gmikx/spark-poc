@@ -1,0 +1,5 @@
+# Kto może się zalogować do JupyterHuba (jeden login na linię).
+# Uwierzytelnia LDAP, o dostępie decyduje ta lista. Zmiana działa od następnego logowania.
+# Administratorzy huba (LDAP_ADMINS) mają dostęp zawsze.
+4alice
+4bob

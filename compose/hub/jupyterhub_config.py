@@ -11,14 +11,36 @@ c.JupyterHub.db_url = "sqlite:////srv/jupyterhub/jupyterhub.sqlite"
 AUTH_MODE = os.environ.get("AUTH_MODE", "dummy")
 
 if AUTH_MODE == "ldap":
+    from ldapauthenticator import LDAPAuthenticator
+
+    ACCESS_FILE = os.environ.get("ACCESS_FILE", "/etc/jupyterhub/access/allowed_users.txt")
+
+    def read_allowed_users():
+        try:
+            with open(ACCESS_FILE) as f:
+                lines = (line.split("#", 1)[0].strip() for line in f)
+                return {line for line in lines if line}
+        except OSError:
+            return set()
+
+    class LocalAuthzLDAPAuthenticator(LDAPAuthenticator):
+        """LDAP służy tylko do uwierzytelnienia (login i hasło). O tym, kto może wejść,
+        decyduje lista na tym serwerze (ACCESS_FILE), czytana przy każdym logowaniu,
+        więc zmiana nie wymaga restartu huba. Administratorzy są dopuszczeni zawsze."""
+
+        async def check_allowed(self, username, auth_model):
+            if username in self.admin_users or username in read_allowed_users():
+                return True
+            self.log.info("Logowanie %s odrzucone: brak na liscie %s", username, ACCESS_FILE)
+            return False
+
     base_dn = os.environ["LDAP_BASE_DN"]
-    c.JupyterHub.authenticator_class = "ldap"
+    c.JupyterHub.authenticator_class = LocalAuthzLDAPAuthenticator
     c.LDAPAuthenticator.server_address = os.environ["LDAP_HOST"]
     c.LDAPAuthenticator.valid_username_regex = r"^[a-z0-9][.a-z0-9_-]*$"
     c.LDAPAuthenticator.use_ssl = False
     c.LDAPAuthenticator.tls_strategy = "insecure"
     c.LDAPAuthenticator.bind_dn_template = [f"uid={{username}},ou=people,{base_dn}"]
-    c.LDAPAuthenticator.allowed_groups = [os.environ["LDAP_ALLOWED_GROUP"]]
     c.Authenticator.admin_users = set(os.environ["LDAP_ADMINS"].split(","))
 else:
     c.JupyterHub.authenticator_class = "dummy"

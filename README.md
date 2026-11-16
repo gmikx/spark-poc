@@ -133,6 +133,10 @@ Konta testowe (naśladują układ z Taurusa: login `4nazwisko`, UID `<rok><numer
 | Katalog domowy `/home/stud2024/<login>` na wspólnym wolumenie, pliki z właściwym właścicielem | działa (symuluje NFS) |
 | PySpark (+UDF), kernel Scala, connectory Cassandry i Neo4j jako zwykli użytkownicy | działa |
 
+### Kto może się zalogować (autoryzacja po stronie serwera)
+
+LDAP służy tylko do **uwierzytelnienia** (login i hasło). O dostępie do JupyterHuba decyduje lista `compose/access/allowed_users.txt` na serwerze (jeden login na linię, plik jest poza gitem; wzór: `allowed_users.example.txt`). Hub czyta ją przy każdym logowaniu, więc dopisanie lub usunięcie osoby nie wymaga restartu. Administratorzy z `LDAP_ADMINS` mają dostęp zawsze. Przynależność do grup LDAP nie jest używana.
+
 ### Znaleziska, które mogą dotyczyć prawdziwego środowiska
 
 1. **Login zaczynający się od cyfry** (`4giza`) jest domyślnie odrzucany przez `ldapauthenticator` (`valid_username_regex`). Trzeba rozluźnić wyrażenie regularne. Zrobione w konfiguracji.

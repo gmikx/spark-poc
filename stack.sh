@@ -17,6 +17,7 @@ cd "$(dirname "$0")/compose"
 umask 002
 
 [ -f .env ] || { echo "Brak pliku .env (skopiuj .env.example i ustaw własne hasła)."; exit 1; }
+[ -f access/allowed_users.txt ] || cp access/allowed_users.example.txt access/allowed_users.txt   # lista osób dopuszczonych do huba
 STACK_FILES=$(sed -n 's/^STACK_FILES=//p' .env | tail -1 | tr -d '"')
 STACK_FILES=${STACK_FILES:-compose.yaml compose.ldap.yaml compose.nfs.yaml}
 FILES=(); for f in $STACK_FILES; do FILES+=(-f "$f"); done

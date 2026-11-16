@@ -43,7 +43,6 @@ services:
       LDAP_BASE_DN: dc=poc,dc=local
       LDAP_BIND_DN: cn=admin,dc=poc,dc=local
       LDAP_BIND_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
-      LDAP_ALLOWED_GROUP: cn=sparkusers,ou=groups,dc=poc,dc=local
       LDAP_ADMINS: ${LDAP_ADMINS:-4alice}
       CASSANDRA_HOST: cassandra
       CASSANDRA_ADMIN_USER: cassandra
@@ -52,6 +51,7 @@ services:
     volumes:
       - homes:/home
       - nss:/nss
+      - ./access:/etc/jupyterhub/access:ro
 
 volumes:
   ldap-data:
