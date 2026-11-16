@@ -9,15 +9,16 @@ services:
     image: sparkpoc/ssh-gateway:latest
     hostname: ssh-gateway
     depends_on:
-      openldap:
-        condition: service_started
       cassandra:
         condition: service_healthy
     environment:
-      LDAP_HOST: openldap
-      LDAP_BASE_DN: dc=poc,dc=local
-      LDAP_BIND_DN: cn=admin,dc=poc,dc=local
-      LDAP_BIND_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
+      LDAP_URI: ${LDAP_URI:-ldap://openldap}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-dc=poc,dc=local}
+      LDAP_USER_SEARCH_BASE: ${LDAP_USER_SEARCH_BASE:-}
+      LDAP_BIND_DN: ${LDAP_BIND_DN-cn=admin,dc=poc,dc=local}
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD-${LDAP_ADMIN_PASSWORD:-ldapadmin}}
+      LDAP_TLS_REQCERT: ${LDAP_TLS_REQCERT:-demand}
+      LDAP_CA_FILE: ${LDAP_CA_FILE:+/etc/ssl/ldap-ca.pem}
       LDAP_ADMINS: ${LDAP_ADMINS:-4alice}
       ACCESS_GROUP: ${ACCESS_GROUP:-sparkusers}
       CASSANDRA_HOST: cassandra
@@ -32,6 +33,7 @@ services:
       - homes:/home
       - ${HOST_ETC_DIR:-./access/demo-etc}:/run/sparkpoc-host/etc:ro
       - ssh-hostkeys:/etc/ssh/hostkeys
+      - ${LDAP_CA_FILE:-./ldap/no-ca.pem}:/etc/ssl/ldap-ca.pem:ro
     mem_limit: ${SSH_MEM_LIMIT:-8g}
     cpus: ${SSH_CPUS:-4}
     restart: unless-stopped

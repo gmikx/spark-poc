@@ -1,0 +1,23 @@
+# Symulowany LDAP w kontenerze (konta demo z ldap/bootstrap.ldif). Do demo i testów.
+# Przy prawdziwym LDAP-ie usuń ten plik z zestawu (STACK_FILES) i ustaw LDAP_URI w .env.
+
+services:
+  openldap:
+    image: osixia/openldap:1.5.0
+    command: --copy-service
+    environment:
+      LDAP_ORGANISATION: "PoC"
+      LDAP_DOMAIN: poc.local
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
+      LDAP_TLS: "false"
+    ports:
+      - "127.0.0.1:389:389"
+    volumes:
+      - ./ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-bootstrap.ldif:ro
+      - ./ldap/02-security.ldif:/container/service/slapd/assets/config/bootstrap/ldif/02-security.ldif:ro
+      - ldap-data:/var/lib/ldap
+      - ldap-config:/etc/ldap/slapd.d
+
+volumes:
+  ldap-data:
+  ldap-config:

@@ -10,15 +10,15 @@
 #   ./stack.sh logs [usługa]   logi (na żywo)
 #   ./stack.sh down        usuń kontenery i sieć (wolumeny z danymi zostają)
 #
-# Zestaw plików compose można zmienić w .env: STACK_FILES="compose.yaml compose.ldap.yaml compose.ssh.yaml"
-# (dodaj compose.cluster.yaml, żeby przyjmować dodatkowe node'y, compose.nfs.yaml dla symulowanego NFS; usuń compose.ssh.yaml, żeby pominąć bramkę SSH).
+# Zestaw plików compose można zmienić w .env: STACK_FILES="compose.yaml compose.ldap.yaml compose.ldap-demo.yaml compose.ssh.yaml"
+# (dodaj compose.cluster.yaml, żeby przyjmować dodatkowe node'y, compose.nfs.yaml dla symulowanego NFS; usuń compose.ssh.yaml, żeby pominąć bramkę SSH, usuń compose.ldap-demo.yaml przy prawdziwym LDAP-ie: LDAP_URI w .env).
 set -euo pipefail
 cd "$(dirname "$0")/compose"
 umask 002
 
 [ -f .env ] || { echo "Brak pliku .env (skopiuj .env.example i ustaw własne hasła)."; exit 1; }
 STACK_FILES=$(sed -n 's/^STACK_FILES=//p' .env | tail -1 | tr -d '"')
-STACK_FILES=${STACK_FILES:-compose.yaml compose.ldap.yaml compose.ssh.yaml}
+STACK_FILES=${STACK_FILES:-compose.yaml compose.ldap.yaml compose.ldap-demo.yaml compose.ssh.yaml}
 FILES=(); for f in $STACK_FILES; do FILES+=(-f "$f"); done
 DC=(docker compose "${FILES[@]}")
 HAS_NFS=0; case " $STACK_FILES " in *" compose.nfs.yaml "*) HAS_NFS=1 ;; esac

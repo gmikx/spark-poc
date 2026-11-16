@@ -15,18 +15,24 @@ chmod 700 /run/sparkpoc-host
 umask 022
 
 # nslcd: użytkownicy z LDAP widziani jako konta systemowe (NSS) i uwierzytelnianie (PAM)
-cat > /etc/nslcd.conf <<CONF
-uid nslcd
-gid nslcd
-uri ldap://${LDAP_HOST}
-base ${LDAP_BASE_DN}
-binddn ${LDAP_BIND_DN}
-bindpw ${LDAP_BIND_PASSWORD}
-base passwd ou=people,${LDAP_BASE_DN}
-filter passwd (objectClass=posixAccount)
-base group ou=groups,${LDAP_BASE_DN}
-filter group (objectClass=posixGroup)
-CONF
+USER_BASE=${LDAP_USER_SEARCH_BASE:-ou=people,${LDAP_BASE_DN}}
+{
+  echo "uid nslcd"
+  echo "gid nslcd"
+  echo "uri ${LDAP_URI}"
+  echo "base ${LDAP_BASE_DN}"
+  if [ -n "${LDAP_BIND_DN:-}" ]; then
+    echo "binddn ${LDAP_BIND_DN}"
+    echo "bindpw ${LDAP_BIND_PASSWORD:-}"
+  fi
+  # allow: bez weryfikacji certyfikatu (jak ldap_tls_reqcert=allow w sssd); demand: weryfikacja wg LDAP_CA_FILE
+  echo "tls_reqcert $([ "${LDAP_TLS_REQCERT:-demand}" = demand ] && echo demand || echo allow)"
+  [ -z "${LDAP_CA_FILE:-}" ] || echo "tls_cacertfile /etc/ssl/ldap-ca.pem"
+  echo "base passwd ${USER_BASE}"
+  echo "filter passwd (objectClass=posixAccount)"
+  echo "base group ${LDAP_BASE_DN}"
+  echo "filter group (objectClass=posixGroup)"
+} > /etc/nslcd.conf
 chmod 600 /etc/nslcd.conf
 mkdir -p /run/nslcd && chown nslcd:nslcd /run/nslcd
 # nslcd przy starcie zamyka wszystkie możliwe deskryptory; w kontenerze limit jest ogromny, więc bez tego się zawiesza

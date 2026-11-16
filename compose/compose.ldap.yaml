@@ -1,24 +1,9 @@
 # Nakładka na compose.yaml: logowanie przez LDAP, UID/GID z LDAP, wspólny /home.
-# Uruchomienie: docker compose -f compose.yaml -f compose.ldap.yaml up -d
-# Używa tych samych obrazów i wolumenów co wersja podstawowa (poza obrazem openldap).
+# Adres i parametry LDAP-a pochodzą z .env (domyślnie symulacja z compose.ldap-demo.yaml):
+#   LDAP_URI, LDAP_BASE_DN, LDAP_USER_SEARCH_BASE, LDAP_BIND_DN, LDAP_BIND_PASSWORD, LDAP_TLS_REQCERT, LDAP_CA_FILE
+# Uruchomienie z symulowanym LDAP: docker compose -f compose.yaml -f compose.ldap.yaml -f compose.ldap-demo.yaml up -d
 
 services:
-  openldap:
-    image: osixia/openldap:1.5.0
-    command: --copy-service
-    environment:
-      LDAP_ORGANISATION: "PoC"
-      LDAP_DOMAIN: poc.local
-      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
-      LDAP_TLS: "false"
-    ports:
-      - "127.0.0.1:389:389"
-    volumes:
-      - ./ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-bootstrap.ldif:ro
-      - ./ldap/02-security.ldif:/container/service/slapd/assets/config/bootstrap/ldif/02-security.ldif:ro
-      - ldap-data:/var/lib/ldap
-      - ldap-config:/etc/ldap/slapd.d
-
   cassandra:
     command:
       - sh
@@ -35,16 +20,17 @@ services:
 
   jupyterhub:
     depends_on:
-      openldap:
-        condition: service_started
       cassandra:
         condition: service_healthy
     environment:
       AUTH_MODE: ldap
-      LDAP_HOST: openldap
-      LDAP_BASE_DN: dc=poc,dc=local
-      LDAP_BIND_DN: cn=admin,dc=poc,dc=local
-      LDAP_BIND_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
+      LDAP_URI: ${LDAP_URI:-ldap://openldap}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-dc=poc,dc=local}
+      LDAP_USER_SEARCH_BASE: ${LDAP_USER_SEARCH_BASE:-}
+      LDAP_BIND_DN: ${LDAP_BIND_DN-cn=admin,dc=poc,dc=local}
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD-${LDAP_ADMIN_PASSWORD:-ldapadmin}}
+      LDAP_TLS_REQCERT: ${LDAP_TLS_REQCERT:-demand}
+      LDAP_CA_FILE: ${LDAP_CA_FILE:+/etc/jupyterhub/ldap-ca.pem}
       LDAP_ADMINS: ${LDAP_ADMINS:-4alice}
       ACCESS_GROUP: ${ACCESS_GROUP:-sparkusers}
       CASSANDRA_HOST: cassandra
@@ -55,9 +41,8 @@ services:
       - homes:/home
       - nss:/nss
       - ${HOST_ETC_DIR:-./access/demo-etc}:/host-etc:ro
+      - ${LDAP_CA_FILE:-./ldap/no-ca.pem}:/etc/jupyterhub/ldap-ca.pem:ro
 
 volumes:
-  ldap-data:
-  ldap-config:
   homes:
   nss:

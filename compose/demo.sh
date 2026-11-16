@@ -26,7 +26,7 @@ command -v docker >/dev/null || { echo "Brak Dockera. Zainstaluj Docker Desktop 
 docker compose version >/dev/null 2>&1 || { echo "Brak wtyczki 'docker compose' (v2)."; exit 1; }
 docker info >/dev/null 2>&1 || { echo "Docker nie jest uruchomiony. Włącz Docker Desktop / demona."; exit 1; }
 
-FILES=(-f compose.yaml -f compose.ldap.yaml -f compose.ssh.yaml)
+FILES=(-f compose.yaml -f compose.ldap.yaml -f compose.ldap-demo.yaml -f compose.ssh.yaml)
 [ "$NFS" = 1 ] && FILES+=(-f compose.nfs.yaml)
 [ "$NODE" = 1 ] && FILES+=(-f compose.cluster.yaml)
 export LOCAL_NODE_NAME="${LOCAL_NODE_NAME:-$(hostname -s)}"

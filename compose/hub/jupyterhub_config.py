@@ -33,13 +33,39 @@ if AUTH_MODE == "ldap":
             self.log.info("Logowanie %s odrzucone: brak w grupie %s", username, ACCESS_GROUP)
             return False
 
+    import ssl
+    from urllib.parse import urlparse
+
     base_dn = os.environ["LDAP_BASE_DN"]
+    LDAP_URI = urlparse(os.environ["LDAP_URI"])
+    LDAP_TLS = LDAP_URI.scheme == "ldaps"
+    LDAP_PORT = LDAP_URI.port or (636 if LDAP_TLS else 389)
+    # puste LDAP_USER_SEARCH_BASE: DN użytkownika z szablonu (uid=<login>,ou=people,<base>), jak w symulacji;
+    # ustawione: DN jest wyszukiwany (użytkownicy w wielu gałęziach, np. o=Stud, o=Staff)
+    USER_SEARCH_BASE = os.environ.get("LDAP_USER_SEARCH_BASE", "")
+    TLS_REQCERT = os.environ.get("LDAP_TLS_REQCERT", "demand")
+    LDAP_CA_FILE = "/etc/jupyterhub/ldap-ca.pem" if os.environ.get("LDAP_CA_FILE") else None
+
+    def tls_kwargs():
+        if TLS_REQCERT in ("allow", "never"):
+            return {"validate": ssl.CERT_NONE}
+        return {"validate": ssl.CERT_REQUIRED, "ca_certs_file": LDAP_CA_FILE} if LDAP_CA_FILE else {}
+
     c.JupyterHub.authenticator_class = LocalAuthzLDAPAuthenticator
-    c.LDAPAuthenticator.server_address = os.environ["LDAP_HOST"]
+    c.LDAPAuthenticator.server_address = LDAP_URI.hostname
+    c.LDAPAuthenticator.server_port = LDAP_PORT
     c.LDAPAuthenticator.valid_username_regex = r"^[a-z0-9][.a-z0-9_-]*$"
-    c.LDAPAuthenticator.use_ssl = False
-    c.LDAPAuthenticator.tls_strategy = "insecure"
-    c.LDAPAuthenticator.bind_dn_template = [f"uid={{username}},ou=people,{base_dn}"]
+    c.LDAPAuthenticator.tls_strategy = "on_connect" if LDAP_TLS else "insecure"
+    c.LDAPAuthenticator.tls_kwargs = tls_kwargs()
+    if USER_SEARCH_BASE:
+        c.LDAPAuthenticator.lookup_dn = True
+        c.LDAPAuthenticator.user_search_base = USER_SEARCH_BASE
+        c.LDAPAuthenticator.user_attribute = "uid"
+        c.LDAPAuthenticator.lookup_dn_user_dn_attribute = "uid"
+        c.LDAPAuthenticator.lookup_dn_search_user = os.environ.get("LDAP_BIND_DN", "")
+        c.LDAPAuthenticator.lookup_dn_search_password = os.environ.get("LDAP_BIND_PASSWORD", "")
+    else:
+        c.LDAPAuthenticator.bind_dn_template = [f"uid={{username}},ou=people,{base_dn}"]
     c.Authenticator.admin_users = set(os.environ["LDAP_ADMINS"].split(","))
 else:
     c.JupyterHub.authenticator_class = "dummy"
@@ -73,17 +99,24 @@ c.DockerSpawner.environment = {
 
 
 def ldap_identity_hook(spawner):
-    from ldap3 import Server, Connection
+    from ldap3 import Connection, Server, Tls
+    from ldap3.utils.conv import escape_filter_chars
 
+    bind_dn = os.environ.get("LDAP_BIND_DN") or None
     conn = Connection(
-        Server(os.environ["LDAP_HOST"]),
-        user=os.environ["LDAP_BIND_DN"],
-        password=os.environ["LDAP_BIND_PASSWORD"],
+        Server(
+            LDAP_URI.hostname,
+            port=LDAP_PORT,
+            use_ssl=LDAP_TLS,
+            tls=Tls(**tls_kwargs()) if LDAP_TLS else None,
+        ),
+        user=bind_dn,
+        password=os.environ.get("LDAP_BIND_PASSWORD") if bind_dn else None,
         auto_bind=True,
     )
     conn.search(
-        f"ou=people,{os.environ['LDAP_BASE_DN']}",
-        f"(uid={spawner.user.name})",
+        USER_SEARCH_BASE or f"ou=people,{os.environ['LDAP_BASE_DN']}",
+        f"(uid={escape_filter_chars(spawner.user.name)})",
         attributes=["uidNumber", "gidNumber", "homeDirectory", "loginShell"],
     )
     entry = conn.entries[0]
