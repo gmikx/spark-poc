@@ -10,6 +10,19 @@ import os
 import re
 
 
+def group_members(group_file, group_name):
+    """Członkowie grupy z pliku w formacie /etc/group (puste, gdy pliku lub grupy brak)."""
+    try:
+        with open(group_file) as f:
+            for line in f:
+                parts = line.rstrip("\n").split(":")
+                if len(parts) >= 4 and parts[0] == group_name:
+                    return {m.strip() for m in parts[3].split(",") if m.strip()}
+    except OSError:
+        pass
+    return set()
+
+
 def role_name(login):
     return "u" + re.sub(r"[^a-z0-9_]", "_", login)
 

@@ -1,0 +1,2 @@
+# Grupa demo (format /etc/group). Na serwerze HOST_ETC_DIR=/etc, a członków zarządza się komendami systemu.
+sparkusers:x:2100:4alice,4bob

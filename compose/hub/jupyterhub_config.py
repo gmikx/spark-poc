@@ -13,25 +13,24 @@ AUTH_MODE = os.environ.get("AUTH_MODE", "dummy")
 if AUTH_MODE == "ldap":
     from ldapauthenticator import LDAPAuthenticator
 
-    ACCESS_FILE = os.environ.get("ACCESS_FILE", "/etc/jupyterhub/access/allowed_users.txt")
+    import sys
 
-    def read_allowed_users():
-        try:
-            with open(ACCESS_FILE) as f:
-                lines = (line.split("#", 1)[0].strip() for line in f)
-                return {line for line in lines if line}
-        except OSError:
-            return set()
+    sys.path.insert(0, "/etc/jupyterhub")
+    from sparkpoc_provision import group_members
+
+    ACCESS_GROUP = os.environ.get("ACCESS_GROUP", "sparkusers")
+    GROUP_FILE = os.environ.get("ACCESS_GROUP_FILE", "/host-etc/group")
 
     class LocalAuthzLDAPAuthenticator(LDAPAuthenticator):
-        """LDAP służy tylko do uwierzytelnienia (login i hasło). O tym, kto może wejść,
-        decyduje lista na tym serwerze (ACCESS_FILE), czytana przy każdym logowaniu,
-        więc zmiana nie wymaga restartu huba. Administratorzy są dopuszczeni zawsze."""
+        """LDAP służy tylko do uwierzytelnienia (login i hasło). O dostępie decyduje grupa
+        ACCESS_GROUP na serwerze (plik group hosta, czytany przy każdym logowaniu), więc
+        zmiana członkostwa (np. usermod -aG) działa bez restartu huba.
+        Administratorzy są dopuszczeni zawsze."""
 
         async def check_allowed(self, username, auth_model):
-            if username in self.admin_users or username in read_allowed_users():
+            if username in self.admin_users or username in group_members(GROUP_FILE, ACCESS_GROUP):
                 return True
-            self.log.info("Logowanie %s odrzucone: brak na liscie %s", username, ACCESS_FILE)
+            self.log.info("Logowanie %s odrzucone: brak w grupie %s", username, ACCESS_GROUP)
             return False
 
     base_dn = os.environ["LDAP_BASE_DN"]

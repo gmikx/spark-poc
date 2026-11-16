@@ -9,6 +9,9 @@ umask 077
   done
 } > /etc/sparkpoc/env
 echo "${LDAP_ADMINS:-}" | tr ',' '\n' > /etc/sparkpoc/admins
+echo "${ACCESS_GROUP:-sparkusers}" > /etc/sparkpoc/access_group
+# katalog z plikami hosta jest niedostępny dla zwykłych użytkowników sesji SSH (czyta go tylko root)
+chmod 700 /run/sparkpoc-host
 umask 022
 
 # nslcd: użytkownicy z LDAP widziani jako konta systemowe (NSS) i uwierzytelnianie (PAM)

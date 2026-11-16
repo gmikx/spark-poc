@@ -117,7 +117,7 @@ docker compose up -d --build jupyterhub   # i: docker compose rm -sf openldap
 
 Konta testowe (naśladują układ z Taurusa: login `4nazwisko`, UID `<rok><numer>`, GID rocznika, home `/home/stud<rok>/<login>`):
 
-| Login | Hasło | Na liście dostępu huba (`access/allowed_users.txt`) | UID:GID |
+| Login | Hasło | W grupie dostępu (`sparkusers`) | UID:GID |
 |---|---|---|---|
 | `4alice` (admin Huba) | `alice123` | tak | 2024001:2024 |
 | `4bob` | `bob123` | tak | 2024002:2024 |
@@ -128,18 +128,29 @@ Konta testowe (naśladują układ z Taurusa: login `4nazwisko`, UID `<rok><numer
 | Test | Wynik |
 |---|---|
 | Logowanie `4alice` i `4bob` | działa |
-| `4carol` (poprawne hasło, brak na liście dostępu) i złe hasło | odrzucone |
+| `4carol` (poprawne hasło, brak w grupie dostępu) i złe hasło | odrzucone |
 | Kontener studenta uruchamiany z UID:GID z LDAP | działa (`uid=2024001(4alice) gid=2024(g2024)`) |
 | Katalog domowy `/home/stud2024/<login>` na wspólnym wolumenie, pliki z właściwym właścicielem | działa (symuluje NFS) |
 | PySpark (+UDF), kernel Scala, connectory Cassandry i Neo4j jako zwykli użytkownicy | działa |
 
 ### Kto może się zalogować (autoryzacja po stronie serwera)
 
-LDAP służy tylko do **uwierzytelnienia** (login i hasło). O dostępie do JupyterHuba decyduje lista `compose/access/allowed_users.txt` na serwerze (jeden login na linię, plik jest poza gitem; wzór: `allowed_users.example.txt`). Hub czyta ją przy każdym logowaniu, więc dopisanie lub usunięcie osoby nie wymaga restartu. Administratorzy z `LDAP_ADMINS` mają dostęp zawsze. Przynależność do grup LDAP nie jest używana.
+LDAP służy tylko do **uwierzytelnienia** (login i hasło). O dostępie do JupyterHuba i bramki SSH decyduje **grupa systemowa na serwerze** (domyślnie `sparkusers`, zmienna `ACCESS_GROUP`). Hub i bramka czytają plik `group` hosta przy każdym logowaniu, więc zmiana członkostwa działa od razu, bez restartu. Administratorzy z `LDAP_ADMINS` mają dostęp zawsze. Przynależność do grup LDAP nie jest używana.
+
+Na serwerze (jednorazowo `sudo ~/scripts/04-host-nss-ldap.sh`, który instaluje `nslcd` i dodaje `ldap` do NSS na hoście, żeby system znał użytkowników z LDAP) i w `compose/.env` ustawiamy `HOST_ETC_DIR=/etc`. Potem zarządzanie to zwykłe komendy:
+
+```bash
+sudo groupadd sparkusers            # raz
+sudo usermod -aG sparkusers 4bob    # dodanie dostępu
+sudo gpasswd -d 4bob sparkusers     # odebranie dostępu
+getent group sparkusers             # kto ma dostęp
+```
+
+Hub czyta plik `/etc` hosta (tylko do odczytu), a w bramce SSH ten katalog jest niedostępny dla zwykłych użytkowników sesji (czyta go tylko root). W demo (`HOST_ETC_DIR` niezmienione) rolę grupy pełni plik `compose/access/demo-etc/group`.
 
 ### Dostęp przez SSH do własnego katalogu domowego (`compose.ssh.yaml`)
 
-Kontener `ssh-gateway` (port `SSH_PORT`, domyślnie 2222) uwierzytelnia przez ten sam LDAP, stosuje tę samą listę dostępu (`access/allowed_users.txt` plus administratorzy) i montuje ten sam `/home` co notebooki. Użytkownik wchodzi jako własny UID z LDAP do `/home/stud<rok>/<login>`:
+Kontener `ssh-gateway` (port `SSH_PORT`, domyślnie 2222) uwierzytelnia przez ten sam LDAP, stosuje tę samą grupę dostępu (plus administratorzy) i montuje ten sam `/home` co notebooki. Użytkownik wchodzi jako własny UID z LDAP do `/home/stud<rok>/<login>`:
 
 ```bash
 ssh -p 2222 4bob@localhost     # na serwerze przez tunel SSH (BIND_ADDR=127.0.0.1); udostępnienie w sieci: SSH_BIND_ADDR

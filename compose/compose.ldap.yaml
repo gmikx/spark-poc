@@ -11,6 +11,8 @@ services:
       LDAP_DOMAIN: poc.local
       LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
       LDAP_TLS: "false"
+    ports:
+      - "127.0.0.1:389:389"
     volumes:
       - ./ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-bootstrap.ldif:ro
       - ./ldap/02-security.ldif:/container/service/slapd/assets/config/bootstrap/ldif/02-security.ldif:ro
@@ -44,6 +46,7 @@ services:
       LDAP_BIND_DN: cn=admin,dc=poc,dc=local
       LDAP_BIND_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
       LDAP_ADMINS: ${LDAP_ADMINS:-4alice}
+      ACCESS_GROUP: ${ACCESS_GROUP:-sparkusers}
       CASSANDRA_HOST: cassandra
       CASSANDRA_ADMIN_USER: cassandra
       CASSANDRA_ADMIN_PASSWORD: ${CASSANDRA_ADMIN_PASSWORD:-cassandra}
@@ -51,7 +54,7 @@ services:
     volumes:
       - homes:/home
       - nss:/nss
-      - ./access:/etc/jupyterhub/access:ro
+      - ${HOST_ETC_DIR:-./access/demo-etc}:/host-etc:ro
 
 volumes:
   ldap-data:

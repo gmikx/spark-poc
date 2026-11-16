@@ -51,7 +51,6 @@ case "$ACTION" in
 esac
 
 [ -f .env ] || cp .env.example .env
-[ -f access/allowed_users.txt ] || cp access/allowed_users.example.txt access/allowed_users.txt
 grep -q '^WAN_PATH_SECRET=' .env || printf 'WAN_PATH_SECRET=%s\n' "$(head -c16 /dev/urandom | od -An -tx1 | tr -d ' \n')" >> .env
 
 mem=$(docker info --format '{{.MemTotal}}')

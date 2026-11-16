@@ -19,6 +19,7 @@ services:
       LDAP_BIND_DN: cn=admin,dc=poc,dc=local
       LDAP_BIND_PASSWORD: ${LDAP_ADMIN_PASSWORD:-ldapadmin}
       LDAP_ADMINS: ${LDAP_ADMINS:-4alice}
+      ACCESS_GROUP: ${ACCESS_GROUP:-sparkusers}
       CASSANDRA_HOST: cassandra
       CASSANDRA_ADMIN_USER: cassandra
       CASSANDRA_ADMIN_PASSWORD: ${CASSANDRA_ADMIN_PASSWORD:-cassandra}
@@ -29,7 +30,7 @@ services:
       - "${SSH_BIND_ADDR:-${BIND_ADDR:-0.0.0.0}}:${SSH_PORT:-2222}:22"
     volumes:
       - homes:/home
-      - ./access:/etc/sparkpoc/access:ro
+      - ${HOST_ETC_DIR:-./access/demo-etc}:/run/sparkpoc-host/etc:ro
       - ssh-hostkeys:/etc/ssh/hostkeys
     mem_limit: ${SSH_MEM_LIMIT:-8g}
     cpus: ${SSH_CPUS:-4}

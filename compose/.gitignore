@@ -5,4 +5,3 @@ wan/id_ed25519.pub
 !.env.node.example
 wan/demo/
 .env.secrets
-access/allowed_users.txt
