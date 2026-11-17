@@ -19,7 +19,7 @@ RUN curl -fsSL -o /usr/local/bin/coursier https://github.com/coursier/launchers/
  && coursier launch --fork almond:${ALMOND_VERSION} --scala ${SCALA_VERSION} -- \
       --install --global --id scala213 --display-name "Scala 2.13 (Almond)" \
  && chmod -R a+rX /usr/local/share/jupyter/kernels/scala213 \
- && chmod -R a+rX /opt/coursier-cache
+ && chmod -R a+rwX /opt/coursier-cache
 
 RUN useradd -m -u 1000 -s /bin/bash jovyan \
  && mkdir -p /home/jovyan/work /tmp/spark \
