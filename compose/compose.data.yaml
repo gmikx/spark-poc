@@ -1,0 +1,24 @@
+# Dane użytkowników i baz na drugim dysku (DATA_DIR, domyślnie /srv/spark-data). Włączenie: dopisz do STACK_FILES w .env.
+# System, Docker, baza huba i klucze zostają na dysku systemowym.
+volumes:
+  homes:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/homes"}
+  cassandra-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/cassandra-data"}
+  neo4j-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/neo4j-data"}
+  spark-local-master:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/spark-local-master"}
+  spark-local-worker:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/spark-local-worker"}
+  spark-local-worker2:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/spark-local-worker2"}
+  shared-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/shared-data"}
