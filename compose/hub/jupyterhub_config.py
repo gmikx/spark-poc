@@ -124,6 +124,7 @@ def ldap_identity_hook(spawner):
     if not os.path.isdir(home):
         try:
             os.makedirs(home)
+            os.chmod(home, 0o755)
             os.chown(home, uid, gid)
         except OSError as e:
             raise RuntimeError(

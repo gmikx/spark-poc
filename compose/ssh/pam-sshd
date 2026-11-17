@@ -2,6 +2,6 @@ auth     requisite  pam_nologin.so
 auth     required   pam_ldap.so
 account  requisite  pam_exec.so quiet /usr/local/bin/spark-authz
 account  required   pam_permit.so
-session  required   pam_mkhomedir.so skel=/etc/skel umask=0077
+session  required   pam_mkhomedir.so skel=/etc/skel umask=0022
 session  optional   pam_exec.so quiet /usr/local/bin/spark-login
 session  required   pam_permit.so
