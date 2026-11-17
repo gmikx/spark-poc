@@ -25,7 +25,7 @@ services:
       timeout: 5s
       retries: 6
       start_period: 20s
-    restart: unless-stopped
+    restart: always
 
   spark-worker:
     build: ./singleuser
@@ -50,7 +50,7 @@ services:
       SPARK_WORKER_DIR: /tmp/spark/work
     volumes:
       - spark-local:/tmp/spark
-    restart: unless-stopped
+    restart: always
 
 volumes:
   spark-local:

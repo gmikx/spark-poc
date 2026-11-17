@@ -18,7 +18,7 @@ services:
     volumes:
       - ${WAN_AUTHORIZED_KEYS:-./wan/authorized_keys}:/etc/ssh/authorized_keys:ro
       - wan-hostkeys:/etc/ssh/hostkeys
-    restart: unless-stopped
+    restart: always
 
   wan-ws:
     image: ghcr.io/erebe/wstunnel:latest
@@ -31,7 +31,7 @@ services:
       - --restrict-http-upgrade-path-prefix=${WAN_PATH_SECRET:?ustaw WAN_PATH_SECRET w .env}
     ports:
       - "${BIND_ADDR:-0.0.0.0}:8443:8443"
-    restart: unless-stopped
+    restart: always
 
 volumes:
   wan-hostkeys:

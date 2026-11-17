@@ -36,7 +36,7 @@ services:
       - ${LDAP_CA_FILE:-./ldap/no-ca.pem}:/etc/ssl/ldap-ca.pem:ro
     mem_limit: ${SSH_MEM_LIMIT:-8g}
     cpus: ${SSH_CPUS:-4}
-    restart: unless-stopped
+    restart: always
 
 volumes:
   ssh-hostkeys:
