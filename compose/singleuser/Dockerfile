@@ -45,9 +45,18 @@ for line in open("/opt/spark/conf/spark-defaults.conf"):
         if key != "spark.driver.memory":
             props.append(f"-D{key}={value.strip()}")
 props.append("-Dlog4j2.configurationFile=/opt/spark/conf/log4j2.properties")
+# Kernel to zwykła JVM (bez spark-submit), więc dodajemy to, co spark-submit dodaje sam: dostęp do modułów Javy 17.
+# Katalog klas REPL (spark.repl.class.outputDir) Spark udostępnia executorom, dzięki czemu lambdy z komórek działają na klastrze.
+opens = ["java.lang", "java.lang.invoke", "java.lang.reflect", "java.io", "java.net", "java.nio", "java.util",
+         "java.util.concurrent", "java.util.concurrent.atomic", "jdk.internal.ref", "sun.nio.ch", "sun.nio.cs",
+         "sun.security.action", "sun.util.calendar"]
+props += ["-XX:+IgnoreUnrecognizedVMOptions"] + [f"--add-opens=java.base/{m}=ALL-UNNAMED" for m in opens]
+props += ["--add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED", "-Djdk.reflect.useDirectMethodHandle=false",
+          "-Dspark.repl.class.outputDir=/tmp/almond-out"]
 data = json.load(open(kernel))
 # predef.sc ładuje jary Sparka i definiuje spark oraz sc (tworzone dopiero przy pierwszym użyciu)
-data["argv"] = data["argv"][:1] + props + data["argv"][1:] + ["--predef", "/opt/almond/predef.sc"]
+data["argv"] = data["argv"][:1] + props + data["argv"][1:] + ["--predef", "/opt/almond/predef.sc", "--output-directory", "/tmp/almond-out",
+                                                              "--auto-update-lazy-vals=false", "--auto-update-vars=false"]
 json.dump(data, open(kernel, "w"), indent=2)
 PY
 
