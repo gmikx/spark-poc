@@ -277,4 +277,4 @@ cp .env.node.example .env.node   # NODE_IP, WAN_URL, WAN_PATH_SECRET
 docker compose -p spark-node -f compose.node.yaml --env-file .env.node up -d --build
 ```
 
-Transport: wss (wstunnel, przez nginx na `nas`) -> `ssh -w` (tun L3) -> kontener `wan-gw` z proxy-ARP, który wystawia `NODE_IP` w podsieci `10.77.0.0/24`. Dzięki temu driver, executory i master widzą się po zwykłych adresach IP. Sprawdzone: job PySpark z executorami na obu node'ach. Szablony vhostów nginx: `nginx/`.
+Transport: wss (wstunnel, przez nginx) -> `ssh -w` (tun L3) -> kontener `wan-gw` z proxy-ARP, który wystawia `NODE_IP` w podsieci `10.77.0.0/24`. Dzięki temu driver, executory i master widzą się po zwykłych adresach IP. Sprawdzone: job PySpark z executorami na obu node'ach. Szablony vhostów nginx: `nginx/`.

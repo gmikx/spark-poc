@@ -120,7 +120,7 @@ services:
     image: spark/dashboard:latest
     environment:
       DOCKER_NETWORK: spark_net
-      LOCAL_NODE_NAME: ${LOCAL_NODE_NAME:-sandbox}
+      LOCAL_NODE_NAME: ${LOCAL_NODE_NAME:-spark0}
       NODE_NAMES: ${NODE_NAMES:-10.77.0.200=laptop,10.77.0.201=laptop2}
     ports:
       - "${DASHBOARD_BIND:-${BIND_ADDR:-0.0.0.0}}:8088:8088"
