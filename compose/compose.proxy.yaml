@@ -1,0 +1,13 @@
+# Wejście HTTP/HTTPS: nginx przed JupyterHubem. Certyfikat: proxy/certs/tls.crt i tls.key (bez nich: samopodpisany).
+# Adres nasłuchu: WEB_BIND_ADDR (domyślnie 127.0.0.1). Włączenie: dopisz compose.proxy.yaml do STACK_FILES w .env.
+services:
+  proxy:
+    build: ./proxy
+    restart: always
+    ports:
+      - "${WEB_BIND_ADDR:-127.0.0.1}:80:80"
+      - "${WEB_BIND_ADDR:-127.0.0.1}:443:443"
+    volumes:
+      - ./proxy/certs:/certs
+    depends_on:
+      - jupyterhub
