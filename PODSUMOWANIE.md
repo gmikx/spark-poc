@@ -168,7 +168,7 @@ sequenceDiagram
 
 | Obszar | Wynik |
 |---|---|
-| Spark 4.0.0 (Java 17, Python 3.10, Scala 2.13.16) | działa: PySpark z UDF, kernel Scala (Almond 0.14.1) |
+| Spark 3.5.9 (Java 17, Python 3.10, Scala 2.12.18) | działa: PySpark z UDF, kernel Scala (Almond 0.14.1) |
 | Konnektor Cassandry 3.5.1 na Sparku 4 | odczyt i zapis działają w prostym teście. Brak oficjalnego wydania dla Sparka 4 (ryzyko na dalszą metę) |
 | Konnektor Neo4j `6.0.0_for_spark_4` | działa (odczyt zapytania Cypher wykonanego po stronie Neo4j). Biblioteki Graph Data Science (GDS) nie ma w obrazie, a algorytmów grafowych nie testowałem |
 | LDAP (logowanie, grupa kursu, UID/GID z LDAP) | działa, w tym odrzucenie użytkownika spoza grupy |

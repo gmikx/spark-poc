@@ -1,4 +1,4 @@
-FROM apache/spark:4.0.0
+FROM apache/spark:3.5.9-java17-python3
 
 USER root
 
@@ -8,18 +8,28 @@ RUN apt-get update \
 
 RUN pip3 install --no-cache-dir \
       "jupyterhub==5.*" jupyterlab notebook ipykernel \
-      pyspark==4.0.0 pandas pyarrow matplotlib \
+      pyspark==3.5.9 pandas pyarrow matplotlib \
       cassandra-driver neo4j findspark
 
 ENV COURSIER_CACHE=/opt/coursier-cache
 ARG ALMOND_VERSION=0.14.1
-ARG SCALA_VERSION=2.13.16
+ARG SCALA_VERSION=2.12.18
 RUN curl -fsSL -o /usr/local/bin/coursier https://github.com/coursier/launchers/raw/master/coursier \
  && chmod +x /usr/local/bin/coursier \
  && coursier launch --fork almond:${ALMOND_VERSION} --scala ${SCALA_VERSION} -- \
-      --install --global --id scala213 --display-name "Scala 2.13 (Almond)" \
- && chmod -R a+rX /usr/local/share/jupyter/kernels/scala213 \
+      --install --global --id scala212 --display-name "Scala 2.12 (Almond)" \
+ && chmod -R a+rX /usr/local/share/jupyter/kernels/scala212 \
  && chmod -R a+rwX /opt/coursier-cache
+
+# Konektory dla Sparka 3.5 (Scala 2.12) w classpath sterownika i executorów: Cassandra, Neo4j, Iceberg
+ARG CASSANDRA_CONNECTOR=3.5.1
+ARG NEO4J_CONNECTOR=5.6.0_for_spark_3
+ARG ICEBERG_VERSION=1.12.0
+RUN M=https://repo1.maven.org/maven2 \
+ && curl -fsSL -o /opt/spark/jars/spark-cassandra-connector-assembly_2.12-${CASSANDRA_CONNECTOR}.jar $M/com/datastax/spark/spark-cassandra-connector-assembly_2.12/${CASSANDRA_CONNECTOR}/spark-cassandra-connector-assembly_2.12-${CASSANDRA_CONNECTOR}.jar \
+ && curl -fsSL -o /opt/spark/jars/neo4j-connector-apache-spark_2.12-${NEO4J_CONNECTOR}.jar $M/org/neo4j/neo4j-connector-apache-spark_2.12/${NEO4J_CONNECTOR}/neo4j-connector-apache-spark_2.12-${NEO4J_CONNECTOR}.jar \
+ && curl -fsSL -o /opt/spark/jars/iceberg-spark-runtime-3.5_2.12-${ICEBERG_VERSION}.jar $M/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/${ICEBERG_VERSION}/iceberg-spark-runtime-3.5_2.12-${ICEBERG_VERSION}.jar \
+ && chmod 0644 /opt/spark/jars/*connector* /opt/spark/jars/iceberg*
 
 RUN useradd -m -u 1000 -s /bin/bash jovyan \
  && mkdir -p /home/jovyan/work /tmp/spark \
@@ -36,7 +46,7 @@ RUN install -D -m 0644 /tmp/spark-defaults.conf /opt/spark/conf/spark-defaults.c
 # Spark czyta jednak właściwości systemowe "spark.*", więc przepisujemy plik na argumenty -D kernela.
 RUN python3 - <<'PY'
 import json
-kernel = "/usr/local/share/jupyter/kernels/scala213/kernel.json"
+kernel = "/usr/local/share/jupyter/kernels/scala212/kernel.json"
 props = []
 for line in open("/opt/spark/conf/spark-defaults.conf"):
     line = line.strip()

@@ -68,14 +68,14 @@ flowchart LR
 
 Jeden obraz `spark/spark-node` służy jako master, worker i serwer użytkownika. Dzięki temu Spark, Java i Python są identyczne wszędzie. To ważne, bo PySpark wymaga zgodnej wersji Pythona na driverze i w executorach.
 
-## Wyniki testów (Spark 4.0.0, Java 17, Python 3.10, Scala 2.13.16)
+## Wyniki testów (Spark 3.5.9, Java 17, Python 3.10, Scala 2.12.18)
 
 | Test | Wynik |
 |---|---|
 | Start całego stosu | działa |
 | JupyterHub tworzy kontener per użytkownik z limitem RAM/CPU | działa |
 | PySpark: driver w kontenerze studenta, executory na workerze | działa, w tym UDF w Pythonie |
-| Kernel Scala (Almond 0.14.1, Scala 2.13.16) + Spark 4 na klastrze | działa, o ile do classpath dodać jary z `/opt/spark/jars` (patrz niżej) |
+| Kernel Scala (Almond 0.14.1, Scala 2.12.18) + Spark 3.5 na klastrze | działa, o ile do classpath dodać jary z `/opt/spark/jars` (patrz niżej) |
 | Cassandra z Pythona (`cassandra-driver`) | działa |
 | Neo4j z Pythona (`neo4j`) | działa |
 | Connector Cassandry `spark-cassandra-connector_2.13:3.5.1` na Sparku 4.0.0 | **odczyt i zapis działają** w prostym teście. Connector nie ma oficjalnego wydania dla Sparka 4 (najnowszy 3.5.1 z czerwca 2024), więc to ryzyko na dalszą metę |
