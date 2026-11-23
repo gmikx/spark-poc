@@ -19,7 +19,7 @@ scrape_configs:
   - job_name: hdfs-namenode
     static_configs: [{targets: ["namenode:9101"]}]
   - job_name: hdfs-datanode
-    static_configs: [{targets: ["datanode:9101"]}]
+    static_configs: [{targets: ["datanode:9101", "datanode2:9101"]}]
   - job_name: jupyterhub
     metrics_path: /hub/metrics
     static_configs: [{targets: ["jupyterhub:8000"]}]

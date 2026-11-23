@@ -28,3 +28,6 @@ volumes:
   hdfs-data:
     driver: local
     driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/hdfs-data"}
+  hdfs-data-2:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/hdfs-data-2"}
