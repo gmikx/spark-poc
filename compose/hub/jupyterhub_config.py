@@ -6,6 +6,8 @@ c.JupyterHub.bind_url = "http://:8000"
 c.JupyterHub.hub_ip = "0.0.0.0"
 c.JupyterHub.hub_connect_ip = "jupyterhub"
 c.JupyterHub.cookie_secret_file = "/srv/jupyterhub/cookie_secret"
+# /hub/metrics dla Prometheusa bez tokenu (dostępne tylko w sieci Dockera; nginx go nie przekazuje na zewnątrz)
+c.JupyterHub.authenticate_prometheus = False
 c.JupyterHub.db_url = "sqlite:////srv/jupyterhub/jupyterhub.sqlite"
 
 AUTH_MODE = os.environ.get("AUTH_MODE", "dummy")
@@ -157,6 +159,10 @@ def account_hook(spawner):
     import spark_provision as prov
 
     role, password = prov.ensure_cassandra_account(spawner.user.name)
+    try:
+        prov.ensure_hdfs_home(spawner.user.name)
+    except Exception as e:  # brak HDFS nie blokuje logowania, tylko praca z plikami na klastrze
+        spawner.log.warning("HDFS: nie udalo sie przygotowac katalogu uzytkownika %s: %s", spawner.user.name, e)
     uid, gid = (int(x) for x in spawner.extra_create_kwargs["user"].split(":"))
     prov.write_connection_file(spawner.environment["HOME"], uid, gid, spawner.user.name)
 
@@ -168,6 +174,7 @@ def account_hook(spawner):
         "NEO4J_USER": "neo4j",
         "NEO4J_PASSWORD": os.environ["NEO4J_PASSWORD"],
         "NEO4J_GRAPH_PREFIX": role + "_",
+        "HADOOP_USER_NAME": spawner.user.name,
     }
 
 

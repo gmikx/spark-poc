@@ -1,0 +1,100 @@
+limit_req_zone $binary_remote_addr zone=admin:10m rate=20r/s;
+
+map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+
+server {
+    listen 80 default_server;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl default_server;
+    http2 on;
+    ssl_certificate     /certs/tls.crt;
+    ssl_certificate_key /certs/tls.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 200M;
+
+    # zwykłe HTTP wysłane na port TLS (np. tunel na inny port) -> przekierowanie na HTTPS
+    error_page 497 =301 https://$http_host$request_uri;
+
+    # metryki huba tylko dla Prometheusa w sieci Dockera
+    location ^~ /hub/metrics {
+        return 404;
+    }
+
+    location / {
+        resolver 127.0.0.11 valid=10s;
+        set $hub http://jupyterhub:8000;
+        proxy_pass $hub;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+        proxy_buffering off;
+    }
+}
+
+# Panele administracyjne: logowanie kontem LDAP administratora (bramka admin-auth), potem Grafana, Prometheus, Spark UI, dashboard.
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${ADMIN_HOST};
+    ssl_certificate     /certs/tls.crt;
+    ssl_certificate_key /certs/tls.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    resolver 127.0.0.11 valid=10s;
+    limit_req zone=admin burst=40 nodelay;
+
+    auth_request /_auth;
+    auth_request_set $webuser $upstream_http_x_webauth_user;
+
+    location = /_auth {
+        internal;
+        auth_request off;
+        set $auth http://admin-auth:8080;
+        proxy_pass $auth;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /prometheus { return 301 /prometheus/; }
+    location /prometheus/ {
+        rewrite ^/prometheus/(.*)$ /$1 break;
+        proxy_pass http://10.78.0.5:9090;
+        proxy_set_header Host $http_host;
+    }
+
+    location = /spark { return 301 /spark/; }
+    location /spark/ {
+        set $sm http://spark-master:8080;
+        rewrite ^/spark/(.*)$ /$1 break;
+        proxy_pass $sm;
+        proxy_set_header Host $http_host;
+    }
+
+    location = /dashboard { return 301 /dashboard/; }
+    location /dashboard/ {
+        set $db http://dashboard:8088;
+        rewrite ^/dashboard/(.*)$ /$1 break;
+        proxy_pass $db;
+        proxy_set_header Host $http_host;
+    }
+
+    location / {
+        set $gf http://grafana:3000;
+        proxy_pass $gf;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-WEBAUTH-USER $webuser;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+}

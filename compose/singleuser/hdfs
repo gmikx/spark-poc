@@ -1,0 +1,6 @@
+#!/bin/bash
+# Klient HDFS oparty na klasach Hadoopa z jarów Sparka: hdfs dfs -ls / -put / -get / -cat / -rm / -mkdir ...
+# Ścieżki względne dotyczą katalogu /user/<login>, a użytkownik to HADOOP_USER_NAME (ustawiany przy logowaniu).
+[ "${1:-}" = dfs ] && shift
+[ $# -gt 0 ] || { echo "użycie: hdfs dfs <polecenie>   np. hdfs dfs -put plik.csv .   |   hdfs dfs -ls"; exit 1; }
+exec java -Dlog4j2.configurationFile=/opt/spark/conf/log4j2.properties -cp "/opt/spark/conf:/opt/spark/jars/*" org.apache.hadoop.fs.FsShell "$@"

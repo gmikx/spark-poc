@@ -1,0 +1,14 @@
+# Metryki HDFS dla Prometheusa (port 9101): tylko istotne MBeany
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+whitelistObjectNames:
+  - "Hadoop:service=NameNode,name=FSNamesystem"
+  - "Hadoop:service=NameNode,name=FSNamesystemState"
+  - "Hadoop:service=NameNode,name=NameNodeInfo"
+  - "Hadoop:service=NameNode,name=NameNodeActivity"
+  - "Hadoop:service=NameNode,name=RpcActivityForPort*"
+  - "Hadoop:service=DataNode,name=FSDatasetState*"
+  - "Hadoop:service=DataNode,name=DataNodeActivity*"
+  - "Hadoop:service=*,name=JvmMetrics"
+rules:
+  - pattern: ".*"

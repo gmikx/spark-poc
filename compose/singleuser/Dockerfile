@@ -9,7 +9,7 @@ RUN apt-get update \
 RUN pip3 install --no-cache-dir \
       "jupyterhub==5.*" jupyterlab notebook ipykernel \
       pyspark==3.5.9 pandas pyarrow matplotlib \
-      cassandra-driver neo4j findspark
+      cassandra-driver neo4j findspark hdfs
 
 ENV COURSIER_CACHE=/opt/coursier-cache
 ARG ALMOND_VERSION=0.14.1
@@ -36,11 +36,16 @@ RUN useradd -m -u 1000 -s /bin/bash jovyan \
  && chown -R jovyan:jovyan /home/jovyan /tmp/spark
 
 # install tworzy nowy plik z prawami 0644 (COPY przenosi też ACL z katalogu budowania, co blokuje odczyt przez użytkownika kontenera)
-COPY spark-defaults.conf predef.sc log4j2.properties /tmp/
+COPY spark-defaults.conf predef.sc log4j2.properties core-site.xml hdfs-site.xml metrics.properties hdfs sparkhdfs.py /tmp/
 RUN install -D -m 0644 /tmp/spark-defaults.conf /opt/spark/conf/spark-defaults.conf \
  && install -D -m 0644 /tmp/log4j2.properties /opt/spark/conf/log4j2.properties \
+ && install -D -m 0644 /tmp/core-site.xml /opt/spark/conf/core-site.xml \
+ && install -D -m 0644 /tmp/hdfs-site.xml /opt/spark/conf/hdfs-site.xml \
+ && install -D -m 0644 /tmp/metrics.properties /opt/spark/conf/metrics.properties \
+ && install -D -m 0755 /tmp/hdfs /usr/local/bin/hdfs \
+ && install -D -m 0644 /tmp/sparkhdfs.py /usr/local/lib/python3.10/dist-packages/sparkhdfs.py \
  && install -D -m 0644 /tmp/predef.sc /opt/almond/predef.sc \
- && rm /tmp/spark-defaults.conf /tmp/log4j2.properties /tmp/predef.sc
+ && rm /tmp/spark-defaults.conf /tmp/log4j2.properties /tmp/predef.sc /tmp/core-site.xml /tmp/hdfs-site.xml /tmp/metrics.properties /tmp/hdfs /tmp/sparkhdfs.py
 
 # Almond uruchamia Sparka w swojej JVM bez spark-submit, więc nie czyta spark-defaults.conf.
 # Spark czyta jednak właściwości systemowe "spark.*", więc przepisujemy plik na argumenty -D kernela.
@@ -71,6 +76,8 @@ json.dump(data, open(kernel, "w"), indent=2)
 PY
 
 ENV SPARK_HOME=/opt/spark \
+    HADOOP_CONF_DIR=/opt/spark/conf \
+    HDFS_WEBHDFS=http://namenode:9870 \
     PYSPARK_PYTHON=python3 \
     HOME=/home/jovyan \
     SHELL=/bin/bash

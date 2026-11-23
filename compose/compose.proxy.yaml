@@ -4,6 +4,9 @@ services:
   proxy:
     build: ./proxy
     restart: always
+    environment:
+      ADMIN_HOST: ${ADMIN_HOST:-admin.spark.example.org}
+      NGINX_ENVSUBST_FILTER: ^ADMIN_
     ports:
       - "${WEB_BIND_ADDR:-127.0.0.1}:80:80"
       - "${WEB_BIND_ADDR:-127.0.0.1}:443:443"

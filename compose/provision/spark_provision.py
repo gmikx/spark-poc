@@ -60,6 +60,31 @@ def ensure_cassandra_account(login):
     return role, password
 
 
+def _webhdfs(op, path, **params):
+    """Wywołanie WebHDFS jako superużytkownik (jego nazwa jest tajna, zna ją tylko hub i bramka)."""
+    import urllib.parse
+    import urllib.request
+
+    query = urllib.parse.urlencode({"op": op, "user.name": os.environ["HDFS_ADMIN_USER"], **params})
+    url = f"{os.environ['HDFS_WEBHDFS']}/webhdfs/v1{urllib.parse.quote(path)}?{query}"
+    method = "GET" if op in ("GETFILESTATUS",) else "PUT"
+    with urllib.request.urlopen(urllib.request.Request(url, method=method), timeout=20) as r:
+        return r.read()
+
+
+def ensure_hdfs_home(login):
+    """Katalog /user/<login> (właściciel: użytkownik) oraz katalogi wspólne. Idempotentne; bez HDFS nic nie robi."""
+    if not os.environ.get("HDFS_WEBHDFS"):
+        return None
+    for path, mode in (("/user", "755"), ("/tmp", "1777"), ("/warehouse", "1777"), ("/shared", "755")):
+        _webhdfs("MKDIRS", path, permission=mode)
+        _webhdfs("SETPERMISSION", path, permission=mode)
+    home = "/user/" + login
+    _webhdfs("MKDIRS", home, permission="755")
+    _webhdfs("SETOWNER", home, owner=login, group=login)
+    return home
+
+
 def connection_info(login):
     role, password = cassandra_credentials(login)
     return {
@@ -76,6 +101,8 @@ def connection_info(login):
             "password": os.environ["NEO4J_PASSWORD"],
             "graph_prefix": role + "_",
         },
+        "hdfs": {"namenode": "hdfs://namenode:8020", "webhdfs": "http://namenode:9870", "home": "/user/" + login}
+        if os.environ.get("HDFS_WEBHDFS") else None,
         "note": "Dane dla skryptów uruchamianych w kontenerach i na bramce SSH. Neo4j jest wspólny: "
         "nazwy grafów projekcji GDS zaczynaj od graph_prefix.",
     }

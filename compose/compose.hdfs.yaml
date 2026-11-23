@@ -1,0 +1,78 @@
+# HDFS (NameNode + DataNode) jako wspólny system plików dla sterowników i executorów Sparka.
+# Włączenie: dopisz compose.hdfs.yaml do STACK_FILES w .env. Dane na drugim dysku: compose.data.yaml (DATA_DIR).
+# Uwierzytelnianie bez Kerberosa (nazwa użytkownika z zaufania). Superużytkownik ma tajną nazwę HDFS_ADMIN_USER,
+# znaną tylko hubowi i bramce, więc student nie może jej użyć. Ustaw własną w .env.
+x-hdfs-config: &hdfs-config
+  CORE-SITE.XML_fs.defaultFS: hdfs://namenode:8020
+  HDFS-SITE.XML_dfs.replication: "1"
+  HDFS-SITE.XML_dfs.permissions.enabled: "true"
+  HDFS-SITE.XML_dfs.permissions.superusergroup: hdfs-brak-grupy
+  HDFS-SITE.XML_dfs.webhdfs.enabled: "true"
+  # loginy z LDAP-a zaczynają się od cyfry (np. 4giza), a domyślny wzorzec WebHDFS tego nie dopuszcza
+  HDFS-SITE.XML_dfs.webhdfs.user.provider.user.pattern: "^[A-Za-z0-9_][A-Za-z0-9._-]*[$]?$"
+  HDFS-SITE.XML_dfs.namenode.datanode.registration.ip-hostname-check: "false"
+  HDFS-SITE.XML_dfs.client.use.datanode.hostname: "false"
+  HDFS-SITE.XML_dfs.datanode.use.datanode.hostname: "false"
+
+services:
+  namenode:
+    build: ./hdfs
+    image: spark/hdfs:latest
+    restart: always
+    user: "0:0"
+    hostname: namenode
+    networks:
+      default:
+        ipv4_address: 10.77.0.13
+    command: ["hdfs", "namenode"]
+    environment:
+      <<: *hdfs-config
+      HADOOP_USER_NAME: ${HDFS_ADMIN_USER:-hdfsadmin}
+      ENSURE_NAMENODE_DIR: /hdfs/name/current  # formatowanie tylko przy pierwszym starcie
+      HDFS-SITE.XML_dfs.namenode.name.dir: file:///hdfs/name
+      HADOOP_HEAPSIZE_MAX: ${HDFS_NN_HEAP:-1g}
+      HDFS_NAMENODE_OPTS: -javaagent:/opt/jmx/agent.jar=9101:/opt/jmx/jmx.yml
+    volumes:
+      - hdfs-name:/hdfs/name
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9870/jmx?qry=Hadoop:service=NameNode,name=NameNodeStatus >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  datanode:
+    image: spark/hdfs:latest
+    restart: always
+    user: "0:0"
+    hostname: datanode
+    depends_on:
+      namenode:
+        condition: service_healthy
+    networks:
+      default:
+        ipv4_address: 10.77.0.14
+    command: ["hdfs", "datanode"]
+    environment:
+      <<: *hdfs-config
+      HDFS-SITE.XML_dfs.datanode.data.dir: file:///hdfs/data
+      HADOOP_HEAPSIZE_MAX: ${HDFS_DN_HEAP:-1g}
+      HDFS_DATANODE_OPTS: -javaagent:/opt/jmx/agent.jar=9101:/opt/jmx/jmx.yml
+    volumes:
+      - hdfs-data:/hdfs/data
+
+  jupyterhub:
+    depends_on:
+      datanode:
+        condition: service_started
+    environment:
+      HDFS_ADMIN_USER: ${HDFS_ADMIN_USER:-hdfsadmin}
+      HDFS_WEBHDFS: http://namenode:9870
+
+  ssh-gateway:
+    environment:
+      HDFS_ADMIN_USER: ${HDFS_ADMIN_USER:-hdfsadmin}
+      HDFS_WEBHDFS: http://namenode:9870
+
+volumes:
+  hdfs-name:
+  hdfs-data:

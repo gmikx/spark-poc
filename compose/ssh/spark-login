@@ -25,6 +25,7 @@ try:
 
     entry = pwd.getpwnam(user)
     prov.ensure_cassandra_account(user)
+    prov.ensure_hdfs_home(user)
     path = prov.write_connection_file(entry.pw_dir, entry.pw_uid, entry.pw_gid, user)
     log(f"ok {user} {path}")
 except Exception:

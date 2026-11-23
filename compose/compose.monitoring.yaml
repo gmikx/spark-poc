@@ -1,0 +1,108 @@
+# Monitoring (Prometheus, Grafana, node-exporter, cAdvisor) i bramka logowania do paneli administracyjnych.
+# Włączenie: dopisz compose.monitoring.yaml do STACK_FILES w .env (wymaga compose.proxy.yaml).
+# Panele są dostępne tylko przez nginx pod ADMIN_HOST, po zalogowaniu kontem LDAP administratora
+# (HUB_ADMINS albo grupa ADMIN_GROUP na serwerze). Usługi siedzą w osobnej sieci spark_admin, niewidocznej dla sesji studentów.
+services:
+  prometheus:
+    build:
+      context: ./monitoring
+      dockerfile: prometheus.Dockerfile
+    image: spark/prometheus:latest
+    restart: always
+    networks:
+      default: {}
+      admin:
+        ipv4_address: 10.78.0.5
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}
+      - --web.listen-address=10.78.0.5:9090
+      - --web.external-url=https://${ADMIN_HOST:-admin.spark.example.org}/prometheus/
+      - --web.route-prefix=/
+    volumes:
+      - prometheus-data:/prometheus
+
+  grafana:
+    build:
+      context: ./monitoring
+      dockerfile: grafana.Dockerfile
+    image: spark/grafana:latest
+    restart: always
+    networks: [admin]
+    depends_on: [prometheus]
+    environment:
+      GF_SERVER_ROOT_URL: https://${ADMIN_HOST:-admin.spark.example.org}/
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me-grafana}
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_PROXY_ENABLED: "true"
+      GF_AUTH_PROXY_HEADER_NAME: X-WEBAUTH-USER
+      GF_AUTH_PROXY_HEADER_PROPERTY: username
+      GF_AUTH_PROXY_AUTO_SIGN_UP: "true"
+      GF_AUTH_PROXY_WHITELIST: 10.78.0.2
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/spark-platform.json
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    restart: always
+    networks: [admin]
+    pid: host
+    command: [--path.rootfs=/host, --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run|var/lib/docker/.+)($$|/)]
+    volumes:
+      - /:/host:ro,rslave
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: always
+    networks: [admin]
+    command: [--docker_only=true, --housekeeping_interval=15s, --store_container_labels=false, "--whitelisted_container_labels=com.docker.compose.service"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+  admin-auth:
+    build: ./admin-auth
+    restart: always
+    networks: [admin]
+    environment:
+      LDAP_URI: ${LDAP_URI:-ldap://openldap}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-dc=poc,dc=local}
+      LDAP_USER_SEARCH_BASE: ${LDAP_USER_SEARCH_BASE:-}
+      LDAP_BIND_DN: ${LDAP_BIND_DN-}
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD-}
+      LDAP_TLS_REQCERT: ${LDAP_TLS_REQCERT:-demand}
+      HUB_ADMINS: ${HUB_ADMINS:-4alice}
+      ADMIN_GROUP: ${ADMIN_GROUP:-sparkadmins}
+    volumes:
+      - ${HOST_ETC_DIR:-./access/demo-etc}:/host-etc:ro
+
+  spark-master:
+    environment:
+      SPARK_MASTER_OPTS: "-Dspark.deploy.defaultCores=${SPARK_DEFAULT_CORES:-1} -Dspark.ui.reverseProxy=true -Dspark.ui.reverseProxyUrl=https://${ADMIN_HOST:-admin.spark.example.org}/spark"
+
+  proxy:
+    networks:
+      default: {}
+      admin:
+        ipv4_address: 10.78.0.2
+
+networks:
+  admin:
+    name: spark_admin
+    ipam:
+      config:
+        - subnet: 10.78.0.0/24
+          ip_range: 10.78.0.128/25
+
+volumes:
+  prometheus-data:
+  grafana-data:

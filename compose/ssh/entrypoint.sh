@@ -4,7 +4,7 @@ set -euo pipefail
 # Dane dla skryptów PAM (uruchamianych przez sshd bez środowiska kontenera).
 umask 077
 {
-  for v in CASSANDRA_HOST CASSANDRA_ADMIN_USER CASSANDRA_ADMIN_PASSWORD CASSANDRA_PASSWORD_SECRET NEO4J_URI NEO4J_PASSWORD; do
+  for v in CASSANDRA_HOST CASSANDRA_ADMIN_USER CASSANDRA_ADMIN_PASSWORD CASSANDRA_PASSWORD_SECRET NEO4J_URI NEO4J_PASSWORD HDFS_ADMIN_USER HDFS_WEBHDFS; do
     echo "$v=${!v:-}"
   done
 } > /etc/spark/env

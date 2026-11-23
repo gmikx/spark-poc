@@ -278,3 +278,21 @@ docker compose -p spark-node -f compose.node.yaml --env-file .env.node up -d --b
 ```
 
 Transport: wss (wstunnel, przez nginx) -> `ssh -w` (tun L3) -> kontener `wan-gw` z proxy-ARP, który wystawia `NODE_IP` w podsieci `10.77.0.0/24`. Dzięki temu driver, executory i master widzą się po zwykłych adresach IP. Sprawdzone: job PySpark z executorami na obu node'ach. Szablony vhostów nginx: `nginx/`.
+
+## HDFS (compose.hdfs.yaml)
+
+Wspólny system plików dla sterowników i executorów Sparka (NameNode + DataNode, replikacja 1, dane w `hdfs-name` i `hdfs-data`).
+
+- Ścieżki względne w Sparku (`spark.read.csv("dane.csv")`, `df.write.parquet("wynik")`, `saveAsTable`) wskazują `/user/<login>`. Użytkownik to `HADOOP_USER_NAME` (ustawiany przy logowaniu), a pliki zapisane przez executory należą do niego.
+- Katalogi `/user/<login>` zakłada hub i bramka SSH przy logowaniu (`spark_provision.ensure_hdfs_home`). Katalogi wspólne: `/tmp` (1777), `/warehouse` (1777, katalog Iceberg `ice`), `/shared` (755).
+- Narzędzia w notebooku i na bramce SSH: `hdfs dfs -put plik.csv .`, `hdfs dfs -ls`, `hdfs dfs -get ...` oraz moduł `sparkhdfs` (`fs = sparkhdfs.client(); fs.upload("a.csv", "lokalny.csv")`).
+- Uwierzytelnianie bez Kerberosa: HDFS wierzy nazwie użytkownika. Superużytkownik ma tajną nazwę `HDFS_ADMIN_USER` (znają ją tylko hub i bramka). Student może podać nazwę innego studenta, więc izolacja jest „z zaufania”; pełna wymagałaby Kerberosa.
+- Iceberg na klastrze: katalog `ice` (`hdfs://namenode:8020/warehouse`), np. `CREATE TABLE ice.db.t (id bigint) USING iceberg`.
+
+## Monitoring i panele administracyjne (compose.monitoring.yaml)
+
+Prometheus, Grafana (dashboard „Platforma Spark”), node-exporter i cAdvisor w osobnej sieci `spark_admin`, niewidocznej dla sesji studentów. Dostęp tylko przez nginx pod `ADMIN_HOST` (rekord DNS), po zalogowaniu kontem LDAP administratora (`HUB_ADMINS` albo grupa `ADMIN_GROUP` na serwerze; bramka `admin-auth`, po 5 błędnych próbach blokada na 5 minut):
+
+- `/` Grafana (logowanie z nagłówka bramki, wszyscy zalogowani administratorzy mają rolę Admin),
+- `/prometheus/`, `/spark/` (Spark Master UI przez reverse proxy), `/dashboard/` (topologia).
+- Spark (master, workery) i HDFS wystawiają metryki dla Prometheusa; metryki huba (`/hub/metrics`) są niedostępne z zewnątrz.

@@ -22,3 +22,9 @@ volumes:
   shared-data:
     driver: local
     driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/shared-data"}
+  hdfs-name:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/hdfs-name"}
+  hdfs-data:
+    driver: local
+    driver_opts: {type: none, o: bind, device: "${DATA_DIR:-/srv/spark-data}/hdfs-data"}
