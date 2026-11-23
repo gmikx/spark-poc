@@ -291,8 +291,8 @@ Wspólny system plików dla sterowników i executorów Sparka (NameNode + DataNo
 
 ## Monitoring i panele administracyjne (compose.monitoring.yaml)
 
-Prometheus, Grafana (dashboard „Platforma Spark”), node-exporter i cAdvisor w osobnej sieci `spark_admin`, niewidocznej dla sesji studentów. Dostęp tylko przez nginx pod `ADMIN_HOST` (rekord DNS), po zalogowaniu kontem LDAP administratora (`HUB_ADMINS` albo grupa `ADMIN_GROUP` na serwerze; bramka `admin-auth`, po 5 błędnych próbach blokada na 5 minut):
+Prometheus, Grafana (dashboard „Platforma Spark”), node-exporter i cAdvisor w osobnej sieci `spark_admin`, niewidocznej dla sesji studentów. Dostęp tylko przez nginx pod `https://PUBLIC_HOST/admin/` (jedna nazwa hosta, bez osobnej subdomeny), po zalogowaniu kontem LDAP administratora (`HUB_ADMINS` albo grupa `ADMIN_GROUP` na serwerze; bramka `admin-auth`, po 5 błędnych próbach blokada na 5 minut):
 
-- `/` Grafana (logowanie z nagłówka bramki, wszyscy zalogowani administratorzy mają rolę Admin),
-- `/prometheus/`, `/spark/` (Spark Master UI przez reverse proxy), `/dashboard/` (topologia).
+- `/admin/grafana/` (logowanie z nagłówka bramki, wszyscy zalogowani administratorzy mają rolę Admin),
+- `/admin/prometheus/`, `/admin/spark/` (Spark Master UI przez reverse proxy), `/admin/hdfs/` (interfejs NameNode), `/admin/dashboard/` (topologia).
 - Spark (master, workery) i HDFS wystawiają metryki dla Prometheusa; metryki huba (`/hub/metrics`) są niedostępne z zewnątrz.

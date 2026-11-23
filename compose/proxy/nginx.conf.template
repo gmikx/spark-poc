@@ -38,25 +38,11 @@ server {
         proxy_send_timeout 3600s;
         proxy_buffering off;
     }
-}
 
-# Panele administracyjne: logowanie kontem LDAP administratora (bramka admin-auth), potem Grafana, Prometheus, Spark UI, dashboard.
-server {
-    listen 443 ssl;
-    http2 on;
-    server_name ${ADMIN_HOST};
-    ssl_certificate     /certs/tls.crt;
-    ssl_certificate_key /certs/tls.key;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    resolver 127.0.0.11 valid=10s;
-    limit_req zone=admin burst=40 nodelay;
-
-    auth_request /_auth;
-    auth_request_set $webuser $upstream_http_x_webauth_user;
-
+    # Panele administracyjne pod /admin/: logowanie kontem LDAP administratora (bramka admin-auth)
     location = /_auth {
         internal;
-        auth_request off;
+        resolver 127.0.0.11 valid=10s;
         set $auth http://admin-auth:8080;
         proxy_pass $auth;
         proxy_pass_request_body off;
@@ -64,43 +50,71 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    location = /prometheus { return 301 /prometheus/; }
-    location /prometheus/ {
-        rewrite ^/prometheus/(.*)$ /$1 break;
-        proxy_pass http://10.78.0.5:9090;
-        proxy_set_header Host $http_host;
-    }
+    location = /admin { return 301 /admin/; }
+    location ^~ /admin/ {
+        resolver 127.0.0.11 valid=10s;
+        limit_req zone=admin burst=40 nodelay;
+        auth_request /_auth;
+        auth_request_set $webuser $upstream_http_x_webauth_user;
 
-    location = /spark { return 301 /spark/; }
-    location /spark/ {
-        set $sm http://spark-master:8080;
-        rewrite ^/spark/(.*)$ /$1 break;
-        proxy_pass $sm;
-        proxy_set_header Host $http_host;
-        # Spark buduje adresy z reverseProxyUrl (bez portu klienta); przepisujemy je na względne, żeby działały pod dowolnym hostem i portem
-        proxy_set_header Accept-Encoding "";
-        sub_filter_once off;
-        sub_filter_types text/html text/css application/javascript;
-        sub_filter 'https://${ADMIN_HOST}/spark' '/spark';
-        proxy_redirect https://${ADMIN_HOST}/spark/ /spark/;
-    }
+        location = /admin/ { return 302 /admin/grafana/; }
 
-    location = /dashboard { return 301 /dashboard/; }
-    location /dashboard/ {
-        set $db http://dashboard:8088;
-        rewrite ^/dashboard/(.*)$ /$1 break;
-        proxy_pass $db;
-        proxy_set_header Host $http_host;
-    }
+        location ^~ /admin/grafana/ {
+            set $gf http://grafana:3000;
+            proxy_pass $gf;
+            proxy_http_version 1.1;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-WEBAUTH-USER $webuser;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+        }
 
-    location / {
-        set $gf http://grafana:3000;
-        proxy_pass $gf;
-        proxy_http_version 1.1;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-WEBAUTH-USER $webuser;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
+        location ^~ /admin/prometheus/ {
+            rewrite ^/admin/prometheus/(.*)$ /$1 break;
+            proxy_pass http://10.78.0.5:9090;
+            proxy_set_header Host $http_host;
+        }
+
+        location ^~ /admin/spark/ {
+            set $sm http://spark-master:8080;
+            rewrite ^/admin/spark/(.*)$ /$1 break;
+            proxy_pass $sm;
+            proxy_set_header Host $http_host;
+            # Spark buduje adresy z reverseProxyUrl; przepisujemy je na względne, żeby działały pod dowolnym hostem i portem
+            proxy_set_header Accept-Encoding "";
+            sub_filter_once off;
+            sub_filter_types text/html text/css application/javascript;
+            sub_filter 'https://${PUBLIC_HOST}/admin/spark' '/admin/spark';
+            proxy_redirect https://${PUBLIC_HOST}/admin/spark/ /admin/spark/;
+        }
+
+        # Interfejs NameNode (przeglądanie katalogów, DataNode'y); używa ścieżek bezwzględnych, więc przepisujemy je na /admin/hdfs/
+        location ^~ /admin/hdfs/ {
+            set $nn http://namenode:9870;
+            rewrite ^/admin/hdfs/(.*)$ /$1 break;
+            proxy_pass $nn;
+            proxy_set_header Host $http_host;
+            proxy_set_header Accept-Encoding "";
+            sub_filter_once off;
+            sub_filter_types text/html text/css application/javascript;
+            sub_filter 'href="/' 'href="/admin/hdfs/';
+            sub_filter 'src="/' 'src="/admin/hdfs/';
+            sub_filter '"/jmx?' '"/admin/hdfs/jmx?';
+            sub_filter "'/jmx?" "'/admin/hdfs/jmx?";
+            sub_filter "'/conf'" "'/admin/hdfs/conf'";
+            sub_filter "'/startupProgress'" "'/admin/hdfs/startupProgress'";
+            sub_filter '"/webhdfs/v1"' '"/admin/hdfs/webhdfs/v1"';
+            sub_filter "'/webhdfs/v1'" "'/admin/hdfs/webhdfs/v1'";
+            sub_filter '/webhdfs/v1/' '/admin/hdfs/webhdfs/v1/';
+        }
+
+        location ^~ /admin/dashboard/ {
+            set $db http://dashboard:8088;
+            rewrite ^/admin/dashboard/(.*)$ /$1 break;
+            proxy_pass $db;
+            proxy_set_header Host $http_host;
+        }
     }
 }
+

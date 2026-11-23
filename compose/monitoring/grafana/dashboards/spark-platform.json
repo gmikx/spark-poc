@@ -25,7 +25,7 @@
    },
    "options": {
     "mode": "html",
-    "content": "<b>Narzędzia:</b> <a href=\"/spark/\" target=\"_blank\" rel=\"noopener\">Spark Master UI</a> · <a href=\"/prometheus/\" target=\"_blank\" rel=\"noopener\">Prometheus</a> · <a href=\"/dashboard/\" target=\"_blank\" rel=\"noopener\">Dashboard topologii</a> · Grafana (tu). Dostęp tylko dla administratorów (logowanie kontem LDAP)."
+    "content": "<b>Narzędzia:</b> <a href=\"/admin/spark/\" target=\"_blank\" rel=\"noopener\">Spark Master UI</a> · <a href=\"/admin/prometheus/\" target=\"_blank\" rel=\"noopener\">Prometheus</a> · <a href=\"/admin/dashboard/\" target=\"_blank\" rel=\"noopener\">Dashboard topologii</a> · <a href=\"/admin/hdfs/\" target=\"_blank\" rel=\"noopener\">HDFS (NameNode)</a> · Grafana (tu). Dostęp tylko dla administratorów (logowanie kontem LDAP)."
    }
   },
   {
