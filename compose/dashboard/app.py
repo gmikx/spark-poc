@@ -17,7 +17,6 @@ client = docker.from_env()
 
 ROLES = {
     "spark-master": "spark-master",
-    "spark-worker": "spark-worker",
     "cassandra": "cassandra",
     "neo4j": "neo4j",
     "jupyterhub": "hub",
@@ -26,13 +25,25 @@ ROLES = {
     "wan-gw": "tunnel",
     "wan-ws": "tunnel",
     "dashboard": "dashboard",
+    "proxy": "proxy",
+    "ssh-gateway": "gateway",
+    "namenode": "hdfs",
+    "prometheus": "monitoring",
+    "grafana": "monitoring",
+    "node-exporter": "monitoring",
+    "cadvisor": "monitoring",
+    "admin-auth": "monitoring",
 }
+PREFIXES = (("spark-worker", "spark-worker"), ("datanode", "hdfs"))
 
 
 def role_of(name, labels):
     service = labels.get("com.docker.compose.service")
     if service in ROLES:
         return ROLES[service]
+    for prefix, role in PREFIXES:
+        if service and service.startswith(prefix):
+            return role
     if name.startswith("spark-user-"):
         return "notebook"
     return "other"
@@ -42,9 +53,10 @@ def container_nodes():
     nodes, env_of = {}, {}
     for c in client.containers.list(all=True):
         nets = c.attrs["NetworkSettings"]["Networks"]
-        if NETWORK not in nets:
-            continue
         labels = c.labels
+        in_project = labels.get("com.docker.compose.project") == PROJECT
+        if NETWORK not in nets and not in_project:
+            continue
         if "com.docker.compose.container-number" not in labels:
             labels = {k: v for k, v in labels.items() if not k.startswith("com.docker.compose.")}
         service = labels.get("com.docker.compose.service") or c.name
@@ -57,7 +69,7 @@ def container_nodes():
             "kind": role_of(c.name, labels),
             "status": status,
             "host": LOCAL_NODE,
-            "ip": nets[NETWORK].get("IPAddress"),
+            "ip": (nets.get(NETWORK) or next(iter(nets.values()), {})).get("IPAddress"),
             "image": c.attrs["Config"]["Image"],
             "depends_on": [d.split(":")[0] for d in labels.get("com.docker.compose.depends_on", "").split(",") if d],
         }
@@ -80,12 +92,19 @@ def build_graph():
         if src in nodes and dst in nodes:
             edges.append({"source": src, "target": dst, "kind": kind})
 
+    # Krawędzie opisują przepływy (nie kolejność startu): ruch HTTP, zlecanie zadań, dane, rejestrację
+    edge("proxy", "jupyterhub", "http")
+    edge("ssh-gateway", "spark-master", "spark")
+    edge("jupyterhub", "cassandra", "provision")
+    edge("jupyterhub", "namenode", "provision")
+    edge("grafana", "prometheus", "monitor")
     for n in list(nodes.values()):
-        for dep in n["depends_on"]:
-            edge(n["id"], dep, "depends_on")
+        if n["kind"] == "hdfs" and n["id"].startswith("datanode"):
+            edge(n["id"], "namenode", "registered")
         if n["kind"] == "notebook":
             edge("jupyterhub", n["id"], "spawns")
             edge(n["id"], "spark-master", "spark")
+            edge(n["id"], "namenode", "data")
             env = dict(e.split("=", 1) for e in env_of[n["id"]] if "=" in e)
             if env.get("CASSANDRA_HOST"):
                 edge(n["id"], env["CASSANDRA_HOST"], "data")

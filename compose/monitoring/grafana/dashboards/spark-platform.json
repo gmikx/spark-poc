@@ -24,8 +24,8 @@
     "h": 3
    },
    "options": {
-    "mode": "markdown",
-    "content": "**Narzędzia:** [Spark Master UI](/spark/) · [Prometheus](/prometheus/) · [Dashboard topologii](/dashboard/) · Grafana (tu). Dostęp tylko dla administratorów (logowanie kontem LDAP)."
+    "mode": "html",
+    "content": "<b>Narzędzia:</b> <a href=\"/spark/\" target=\"_blank\" rel=\"noopener\">Spark Master UI</a> · <a href=\"/prometheus/\" target=\"_blank\" rel=\"noopener\">Prometheus</a> · <a href=\"/dashboard/\" target=\"_blank\" rel=\"noopener\">Dashboard topologii</a> · Grafana (tu). Dostęp tylko dla administratorów (logowanie kontem LDAP)."
    }
   },
   {

@@ -77,6 +77,12 @@ server {
         rewrite ^/spark/(.*)$ /$1 break;
         proxy_pass $sm;
         proxy_set_header Host $http_host;
+        # Spark buduje adresy z reverseProxyUrl (bez portu klienta); przepisujemy je na względne, żeby działały pod dowolnym hostem i portem
+        proxy_set_header Accept-Encoding "";
+        sub_filter_once off;
+        sub_filter_types text/html text/css application/javascript;
+        sub_filter 'https://${ADMIN_HOST}/spark' '/spark';
+        proxy_redirect https://${ADMIN_HOST}/spark/ /spark/;
     }
 
     location = /dashboard { return 301 /dashboard/; }

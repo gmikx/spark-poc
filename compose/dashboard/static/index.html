@@ -28,15 +28,19 @@
 <div id="info">kliknij węzeł lub strzałkę</div>
 <script>
 const COLORS = { "spark-master": "#e25a1c", "spark-worker": "#f0a04b", cassandra: "#1287b1", neo4j: "#4c8eda",
-  hub: "#f37726", notebook: "#9b6dd6", ldap: "#888", nfs: "#b0a060", tunnel: "#2ea6a6", dashboard: "#666", other: "#666" };
-const EDGE = { depends_on: ["#667", "dashed"], spawns: ["#9b6dd6", "dotted"], spark: ["#e25a1c", "solid"],
-  data: ["#4c8eda", "solid"], registered: ["#f0a04b", "solid"], tunnel: ["#2ea6a6", "dashed"] };
+  hub: "#f37726", notebook: "#9b6dd6", ldap: "#888", nfs: "#b0a060", tunnel: "#2ea6a6", dashboard: "#7a8", other: "#666",
+  proxy: "#3aa17e", gateway: "#3aa17e", hdfs: "#d6b341", monitoring: "#7d7fb3" };
+const EDGE = { spawns: ["#9b6dd6", "dotted"], spark: ["#e25a1c", "solid"], data: ["#4c8eda", "solid"],
+  registered: ["#f0a04b", "solid"], tunnel: ["#2ea6a6", "dashed"], http: ["#3aa17e", "solid"],
+  provision: ["#778", "dashed"], monitor: ["#7d7fb3", "dashed"] };
 const EDGE_INFO = {
-  depends_on: ["zależność startowa", "usługa wymaga drugiej do startu (depends_on w compose)"],
+  http: ["ruch HTTP(S)", "nginx przekazuje ruch do huba i do paneli administracyjnych"],
   spawns: ["utworzył kontener", "JupyterHub uruchomił ten notebook (DockerSpawner)"],
-  spark: ["zadania Spark", "notebook jest driverem Sparka i zleca zadania masterowi (executory na workerach)"],
-  data: ["dostęp do danych", "notebook łączy się z bazą (Cassandra / Neo4j)"],
-  registered: ["worker zarejestrowany", "worker jest podpięty do mastera Sparka i przyjmuje od niego zadania"],
+  spark: ["zadania Spark", "sterownik (notebook lub SSH) zleca zadania masterowi; executory działają na workerach"],
+  data: ["dostęp do danych", "notebook czyta i zapisuje dane (HDFS, Cassandra, Neo4j)"],
+  registered: ["rejestracja", "worker rejestruje się w masterze Sparka, DataNode w NameNode"],
+  provision: ["zakładanie kont", "hub zakłada przy logowaniu rolę w Cassandrze i katalog w HDFS"],
+  monitor: ["metryki", "Grafana czyta metryki z Prometheusa (Prometheus zbiera je ze wszystkich usług)"],
   tunnel: ["tunel do klastra", "zdalny node łączy się z klastrem przez tunel wss + ssh (wan-gw)"],
 };
 const statusColor = s => s === "running" ? "#3fb950" : (s === "exited" || s === "dead" || s === "down") ? "#f85149" : "#d29922";
@@ -49,30 +53,64 @@ const cy = cytoscape({
         "background-color": "data(color)", "border-width": 4, "border-color": "data(border)", width: 46, height: 46 } },
     { selector: ":parent", style: { label: "data(label)", "text-valign": "top", "background-opacity": 0.08, "background-color": "#8af",
         "border-width": 1, "border-color": "#8af", "border-style": "dashed", shape: "round-rectangle", "font-size": 14, padding: 24, color: "#9bd" } },
-    { selector: "edge", style: { width: 2, "curve-style": "bezier", "target-arrow-shape": "triangle", "line-color": "data(color)",
+    { selector: "node[id ^= 'grp:']", style: { "background-opacity": 0.05, "border-style": "solid", "border-width": 1, "border-color": "#556", "font-size": 12, color: "#89a", padding: 22 } },
+    { selector: "edge", style: { width: 2, "curve-style": "taxi", "taxi-direction": "auto", "taxi-turn": 40, "taxi-turn-min-distance": 12, "target-arrow-shape": "triangle", "line-color": "data(color)",
         "target-arrow-color": "data(color)", "line-style": "data(style)", opacity: 0.85 } },
     { selector: "edge:selected", style: { width: 4, opacity: 1 } },
+    { selector: "node[kind]", style: { "z-index-compare": "manual", "z-index": 10 } },
+    { selector: "edge", style: { "z-index-compare": "manual", "z-index": 1, opacity: 0.6 } },
+    { selector: ".faded", style: { opacity: 0.1 } },
+    { selector: "edge.hl", style: { opacity: 1, width: 3.5 } },
   ],
 });
 
-const COL = { hub: 0, ldap: 0, nfs: 0, notebook: 1, "spark-master": 2, cassandra: 2, neo4j: 2, "spark-worker": 3, tunnel: 4, dashboard: 4, other: 4 };
-const ORDER = ["hub", "ldap", "nfs", "notebook", "spark-master", "cassandra", "neo4j", "spark-worker", "tunnel", "dashboard", "other"];
-const DX = 190, DY = 120;
+// Warstwy (kolumny) od wejścia do danych; w obrębie warstwy węzły są porządkowane wg sąsiadów, żeby krawędzie się nie plątały
+const TIER = { proxy: 0, gateway: 0, hub: 1, notebook: 1, "spark-master": 2, "spark-worker": 2, tunnel: 2,
+  hdfs: 3, cassandra: 3, neo4j: 3, monitoring: 4, dashboard: 4, ldap: 4, nfs: 4, other: 4 };
+const TIER_NAME = ["wejście", "użytkownicy", "obliczenia (Spark)", "dane", "monitoring i administracja"];
+const ORDER = ["proxy", "gateway", "hub", "notebook", "spark-master", "spark-worker", "tunnel", "hdfs", "cassandra", "neo4j",
+  "monitoring", "dashboard", "ldap", "nfs", "other"];
+const DX = 230, DY = 100;
 
-function layout(nodes) {
+function layout(nodes, edges) {
   const main = (nodes.find(n => n.kind === "spark-master") || nodes[0]).host;
   const others = [...new Set(nodes.map(n => n.host))].filter(h => h !== main).sort();
-  const pos = {}, cells = {};
-  nodes.forEach(n => {
-    const hostIdx = n.host === main ? -1 : others.indexOf(n.host);
-    const col = n.host === main ? (COL[n.kind] ?? 4) : 5 + hostIdx;
-    (cells[`${n.host}|${col}`] ||= { col, items: [] }).items.push(n);
-  });
-  Object.values(cells).forEach(({ col, items }) => {
-    items.sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || a.id.localeCompare(b.id));
-    items.forEach((n, i) => { pos[n.id] = { x: col * DX + (col >= 5 ? 90 : 0), y: (i - (items.length - 1) / 2) * DY }; });
-  });
-  return pos;
+  const tierOf = n => n.host === main ? (TIER[n.kind] ?? 4) : 5 + others.indexOf(n.host);
+  const cols = {};
+  nodes.forEach(n => (cols[tierOf(n)] ||= []).push(n));
+  const base = n => ORDER.indexOf(n.kind) * 1000 + n.id.charCodeAt(0);
+  // koordynator (NameNode, master Sparka) w środku swoich pomocników, żeby krawędzie się nie nakładały
+  const mid = (c, kind, hub) => {
+    const hubN = c.find(n => n.id === hub), helpers = c.filter(n => n.kind === kind && n.id !== hub);
+    if (!hubN || !helpers.length) return c;
+    const h = Math.ceil(helpers.length / 2), at = c.findIndex(n => n.kind === kind);
+    const rest = c.filter(n => n.kind !== kind && n.id !== hub);
+    rest.splice(at < 0 ? rest.length : Math.min(at, rest.length), 0, ...helpers.slice(0, h), hubN, ...helpers.slice(h));
+    return rest; };
+  const hdfsMid = c => mid(mid(c, "hdfs", "namenode"), "spark-worker", "spark-master");
+  Object.values(cols).forEach(c => c.sort((a, b) => base(a) - base(b) || a.id.localeCompare(b.id)));
+  Object.keys(cols).forEach(t => cols[t] = hdfsMid(cols[t]));
+  const idx = {}, ncols = Object.keys(cols).map(Number).sort((a, b) => a - b);
+  const reindex = () => ncols.forEach(t => cols[t].forEach((n, i) => idx[n.id] = (i + 0.5) / cols[t].length));
+  const nb = {};
+  edges.forEach(e => { (nb[e.source] ||= []).push(e.target); (nb[e.target] ||= []).push(e.source); });
+  reindex();
+  // kilka przejść: kolumna sortowana wg średniej pozycji sąsiadów z kolumn już ustawionych (barycentrum)
+  for (let pass = 0; pass < 6; pass++) {
+    (pass % 2 ? [...ncols].reverse() : ncols).forEach(t => {
+      const bc = n => { const v = (nb[n.id] || []).filter(m => tierOf({ id: m, ...nodes.find(x => x.id === m) }) !== t && idx[m] !== undefined).map(m => idx[m]);
+        return v.length ? v.reduce((a, b) => a + b) / v.length : idx[n.id]; };
+      cols[t].sort((a, b) => bc(a) - bc(b) || base(a) - base(b));
+      cols[t] = hdfsMid(cols[t]);
+      cols[t].forEach((n, i) => idx[n.id] = (i + 0.5) / cols[t].length);
+    });
+  }
+  const rows = Math.max(...ncols.map(t => cols[t].length));
+  const pos = {};
+  ncols.forEach(t => cols[t].forEach((n, i) => {
+    pos[n.id] = { x: t * DX, y: (i - (cols[t].length - 1) / 2) * DY + (rows * DY) / 2 + (t % 2) * DY / 2 };
+  }));
+  return { pos, tierOf, main };
 }
 
 let signature = "";
@@ -82,10 +120,12 @@ async function refresh() {
   if (g.error) { document.getElementById("summary").textContent = g.error; return; }
 
   const hosts = [...new Set(g.nodes.map(n => n.host))];
-  const pos = layout(g.nodes);
+  const { pos, tierOf, main } = layout(g.nodes, g.edges);
+  const groups = [...new Set(g.nodes.map(n => `${n.host}|${tierOf(n)}`))];
   const elements = [
     ...hosts.map(h => ({ data: { id: "host:" + h, label: "node: " + h } })),
-    ...g.nodes.map(n => ({ position: pos[n.id], data: { ...n, parent: "host:" + n.host, color: COLORS[n.kind] || "#666", border: statusColor(n.status) } })),
+    ...groups.map(k => { const [h, t] = k.split("|"); return { data: { id: "grp:" + k, parent: "host:" + h, label: h === main ? TIER_NAME[t] : "" } }; }),
+    ...g.nodes.map(n => ({ position: pos[n.id], data: { ...n, parent: `grp:${n.host}|${tierOf(n)}`, color: COLORS[n.kind] || "#666", border: statusColor(n.status) } })),
     ...g.edges.map(e => ({ data: { id: `${e.source}>${e.target}:${e.kind}`, ...e, color: EDGE[e.kind][0], style: EDGE[e.kind][1] } })),
   ];
   const sig = elements.map(e => e.data.id).sort().join("|");
@@ -116,8 +156,15 @@ cy.on("tap", "edge", ev => {
   const d = ev.target.data(), [name, desc] = EDGE_INFO[d.kind];
   document.getElementById("info").textContent = `${d.source} → ${d.target}\n${name}\n${desc}`;
 });
-cy.on("mouseover", "edge", ev => ev.target.style({ width: 4 }));
-cy.on("mouseout", "edge", ev => ev.target.removeStyle("width"));
+// po najechaniu na węzeł podświetlamy tylko jego połączenia, reszta blaknie
+cy.on("mouseover", "node[kind]", ev => {
+  const n = ev.target, hood = n.closedNeighborhood();
+  cy.elements().not(":parent").addClass("faded");
+  hood.removeClass("faded"); n.connectedEdges().addClass("hl");
+});
+cy.on("mouseout", "node[kind]", () => { cy.elements().removeClass("faded").removeClass("hl"); });
+cy.on("mouseover", "edge", ev => ev.target.addClass("hl"));
+cy.on("mouseout", "edge", ev => ev.target.removeClass("hl"));
 refresh(); setInterval(refresh, 3000);
 </script>
 </body>
