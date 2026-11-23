@@ -15,6 +15,9 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     client_max_body_size 200M;
 
+    # przekierowania względne (nginx nie dokleja swojego portu), żeby działały też za tunelem na innym porcie
+    absolute_redirect off;
+
     # zwykłe HTTP wysłane na port TLS (np. tunel na inny port) -> przekierowanie na HTTPS
     error_page 497 =301 https://$http_host$request_uri;
 
