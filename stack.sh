@@ -38,7 +38,9 @@ CMD=${1:-status}; shift || true
 case "$CMD" in
   up)      "${DC[@]}" build spark-master   # obraz spark-node jest bazą dla bramki SSH
            [ "$HAS_NFS" = 1 ] && "${DC[@]}" up -d --build nfs && sleep 5
-           "${DC[@]}" up -d --build --wait --wait-timeout 900 ;;
+           "${DC[@]}" up -d --build --wait --wait-timeout 900
+           # sprzątanie po przebudowach: obrazy bez tagu i cache budowania starszy niż doba
+           docker image prune -f >/dev/null; docker builder prune -f --filter until=24h >/dev/null ;;
   start)   bring_up ;;
   stop)    remove_sessions; "${DC[@]}" stop ;;
   restart) remove_sessions; "${DC[@]}" stop; bring_up ;;

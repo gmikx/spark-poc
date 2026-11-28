@@ -90,6 +90,7 @@ c.DockerSpawner.volumes = {
     "spark-home-{username}": "/home/jovyan/work",
     "spark_shared-data": {"bind": "/home/jovyan/shared", "mode": "ro"},
 }
+c.DockerSpawner.extra_host_config = {"log_config": {"type": "json-file", "config": {"max-size": "10m", "max-file": "3"}}}
 c.DockerSpawner.mem_limit = os.environ["USER_MEM_LIMIT"]
 c.DockerSpawner.cpu_limit = float(os.environ["USER_CPU_LIMIT"])
 c.DockerSpawner.environment = {

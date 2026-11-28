@@ -9,6 +9,9 @@ services:
       dockerfile: prometheus.Dockerfile
     image: spark/prometheus:latest
     restart: always
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
     networks:
       default: {}
       admin:
@@ -29,6 +32,9 @@ services:
       dockerfile: grafana.Dockerfile
     image: spark/grafana:latest
     restart: always
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
     networks: [admin]
     depends_on: [prometheus]
     environment:
@@ -53,6 +59,9 @@ services:
   node-exporter:
     image: prom/node-exporter:v1.8.2
     restart: always
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
     networks: [admin]
     pid: host
     command: [--path.rootfs=/host, --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run|var/lib/docker/.+)($$|/)]
@@ -62,6 +71,9 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     restart: always
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
     networks: [admin]
     command: [--docker_only=true, --housekeeping_interval=15s, --store_container_labels=false, "--whitelisted_container_labels=com.docker.compose.service"]
     volumes:
@@ -73,6 +85,9 @@ services:
   admin-auth:
     build: ./admin-auth
     restart: always
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
     networks: [admin]
     environment:
       LDAP_URI: ${LDAP_URI:-ldap://openldap}

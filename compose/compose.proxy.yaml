@@ -4,6 +4,9 @@ services:
   proxy:
     build: ./proxy
     restart: always
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST:-spark.example.org}
       NGINX_ENVSUBST_FILTER: ^PUBLIC_

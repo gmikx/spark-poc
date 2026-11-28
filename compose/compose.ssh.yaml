@@ -37,6 +37,9 @@ services:
     mem_limit: ${SSH_MEM_LIMIT:-8g}
     cpus: ${SSH_CPUS:-4}
     restart: always
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
 
 volumes:
   ssh-hostkeys:
